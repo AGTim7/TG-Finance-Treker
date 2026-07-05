@@ -1,6 +1,8 @@
 import bot from '../index' 
 import {Composer} from 'grammy'
 import {UserService} from '../../services/users.service'
+import getStartMessage from '../../content/botTexts'
+
 
 export const handleStart = new Composer();
 
@@ -14,11 +16,7 @@ handleStart.command("start", async (ctx) => {
 
   try{
     const {user, isNew} = await UserService.handleStartCommand(telegramId, username);
-    if (isNew) {
-      await ctx.reply(`Рад знакомству, ${username || 'пользователь'}! Вы успешно зарегистрированы. 🎉`);
-    } else {
-      await ctx.reply("Вы уже зарегистрированы в системе! Рады видеть вас снова. 👋");
-    }
+      await ctx.reply(getStartMessage(username))
   } catch (error) {
     ctx.reply("Ошибка: Не удалось обработать команду.");
   }
