@@ -15,7 +15,7 @@ handleStart.command("start", async (ctx) => {
   }
 
   try{
-    const {user, isNew} = await UserService.handleStartCommand(telegramId, username);
+    await UserService.handleStartCommand(telegramId, username);
       await ctx.reply(getStartMessage(username))
   } catch (error) {
     ctx.reply("Ошибка: Не удалось обработать команду.");

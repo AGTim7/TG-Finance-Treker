@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../generated/prisma"
 }
 
@@ -32,7 +32,7 @@ model Category {
   name      String
   type      TransactionType
   color     String
-  
+  emoji     String
   user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
 
