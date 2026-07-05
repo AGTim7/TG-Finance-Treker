@@ -14,7 +14,7 @@ enum TransactionType {
 
 model User {
   id         String   @id @default(uuid()) @db.Uuid
-  telegramId BigInt   @unique @map("telegram_id")
+  telegramId String   @unique
   username   String?
   currency   String   @default("RUB")
   createdAt  DateTime @default(now()) @map("created_at")
@@ -22,7 +22,7 @@ model User {
   transactions Transaction[]
   categories   Category[]
 
-  @@map("users")
+  @@map("user")
 }
 
 
@@ -31,13 +31,12 @@ model Category {
   userId    String?         @map("user_id") @db.Uuid // null для глобальных категорий
   name      String
   type      TransactionType
-  icon      String
   color     String
   
   user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
 
-  @@map("categories")
+  @@map("category")
 }
 
 model Transaction {
@@ -52,5 +51,5 @@ model Transaction {
   category Category @relation(fields: [categoryId], references: [id])
 
   @@index([userId, date(sort: Desc)])
-  @@map("transactions")
+  @@map("transaction")
 }
