@@ -32,17 +32,21 @@ export class UserService {
 
   static async findUserUUID(
     telegramId: string
-  ): Promise<string|null>{
+  ): Promise<string|never>{
     try{
       const user = await prisma.user.findUnique({
         where:{telegramId: telegramId},
         select:{id: true},
       })
 
-      return user ? user.id : null
+      if (!user) {
+        throw new Error(`Пользователь с telegramId ${telegramId} не найден`);
+      }
+
+      return user.id;
     }catch(error){
       console.log("Ошибка при получении id пользователя: ", error)
-      return null
+      throw error
     }
   }
 }

@@ -1,63 +1,77 @@
-import {Composer, InlineKeyboard} from 'grammy'
-import {conversations, createConversation} from '@grammyjs/conversations'
+import { Composer, InlineKeyboard } from 'grammy'
+import { createConversation } from '@grammyjs/conversations'
+import { Prisma } from '@prisma/client'
 
 import { MyContext, MyConversation, MyConversationContext } from '../../types/context'
-import type {CategoryModel} from '../../../generated/prisma/models/Category' 
+import type { CategoryModel } from '../../../generated/prisma/models/Category' 
 import type { TransactionType } from '../../../generated/prisma/enums'
 
 import { UserService } from '../../services/users.service'
 import { CategoryService } from '../../services/categories.service'
 import { TransactionService } from '../../services/transactions.service'
 
-
 export const handleIncomeCommand = new Composer<MyContext>()
 
-export async function incomeConservation( conversation: MyConversation, ctx: MyConversationContext,){
+export async function incomeConversation(conversation: MyConversation, ctx: MyConversationContext) {
 
   const userTelegramId = ctx.from?.id.toString()
   const transactionType: TransactionType = "INCOME"
-  let categoriesList: CategoryModel[]|null = []
+  let categoriesList: CategoryModel[] = []
   const keyboard = new InlineKeyboard();
+  
+  if (!userTelegramId) {
+    console.log('Не найден пользователь')
+    return
+  }
 
   await ctx.reply("💰 Введите сумму дохода (например, 5000):")
   const amountCtx = await conversation.waitFor("message:text");
   const amountNum = parseFloat(amountCtx.msg.text)
 
-  if (isNaN(amountNum)|| amountNum <= 0){
+  if (isNaN(amountNum) || amountNum <= 0) {
     await ctx.reply("❌ Некорректная сумма. Процесс отменен. Попробуйте снова: /доход")
     return
   }
 
-  try{
-    await CategoryService.getBasicCategories()
-    .then((data)=>{categoriesList = data})
-  }catch(error){
+  try {
+    categoriesList = (await CategoryService.getBasicCategories()) || []
+  } catch (error) {
     console.log('Не найдено категорий', error)
   }
 
-  categoriesList.filter((item)=>item.type == transactionType)
-  .forEach((category,index)=>{
-    keyboard.text(`${category.emoji} ${category.name}`, `cat:${category.id}`)
+  // Фильтруем и строим инлайн-кнопки
+  categoriesList
+    .filter((item) => item.type === transactionType)
+    .forEach((category, index) => {
+      keyboard.text(`${category.emoji} ${category.name}`, `cat:${category.id}`)
 
-    if ((index + 1) % 2 === 0) {
-    keyboard.row();
-    }
-  })
-
-
+      if ((index + 1) % 2 === 0) {
+        keyboard.row();
+      }
+    })
   
   await ctx.reply('Нажмите на нужную категорию:', { reply_markup: keyboard });
 
   const callbackCtx = await conversation.waitForCallbackQuery(/^cat:/);
   const selectedCategoryId = callbackCtx.callbackQuery.data.replace('cat:', '');
   await callbackCtx.answerCallbackQuery();
-  
 
+  try {
+    const userUUID = await UserService.findUserUUID(userTelegramId)
+    await TransactionService.create(userUUID, {
+      categoryId: selectedCategoryId, 
+      amount: new Prisma.Decimal(amountNum)
+    })
+
+    await ctx.reply(`✅ Успешно добавлено: +${amountNum} ₽`);
+  } catch (error: any) {
+    console.error('Ошибка при сохранении транзакции:', error)
+    await ctx.reply(`❌ Ошибка при сохранении: ${error.message}`)
+  }
 }
 
-
-handleIncomeCommand.use(createConversation(incomeConservation, "incomeConservation"))
+handleIncomeCommand.use(createConversation(incomeConversation, "incomeConversation"))
 
 handleIncomeCommand.command('income', async (ctx) => {
-  await ctx.conversation.enter("incomeConservation")
+  await ctx.conversation.enter("incomeConversation")
 });
