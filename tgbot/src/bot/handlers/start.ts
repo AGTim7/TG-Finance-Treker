@@ -4,6 +4,7 @@ import {UserService} from '../../services/users.service'
 import getStartMessage from '../../content/botTexts'
 
 
+
 export const handleStart = new Composer();
 
 handleStart.command("start", async (ctx) => {

@@ -28,6 +28,21 @@ export class UserService {
         data: { username: username },
       });
     }
+  }
 
+  static async findUserUUID(
+    telegramId: string
+  ): Promise<string|null>{
+    try{
+      const user = await prisma.user.findUnique({
+        where:{telegramId: telegramId},
+        select:{id: true},
+      })
+
+      return user ? user.id : null
+    }catch(error){
+      console.log("Ошибка при получении id пользователя: ", error)
+      return null
+    }
   }
 }

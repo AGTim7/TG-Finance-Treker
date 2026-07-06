@@ -1,6 +1,9 @@
 import { Bot, Composer, GrammyError, HttpError } from "grammy";
+import {conversations} from '@grammyjs/conversations'
 import dotenv from "dotenv";
 import {handleStart} from './handlers/start'
+import { handleIncomeCommand } from "./handlers/income";
+import { MyContext } from '../types/context'
 
 
 dotenv.config()
@@ -8,13 +11,31 @@ const token = process.env.BOT_TOKEN;
 if (!token) {
   throw new Error("Ошибка: Переменная BOT_TOKEN не задана в файле .env");
 }
-const bot = new Bot(token);
+const bot = new Bot<MyContext>(token);
+bot.use(conversations());
 
 
-export const handlers = new Composer();
+
+export const handlers = new Composer<MyContext>();
 handlers.use(handleStart);
+handlers.use(handleIncomeCommand)
 
 bot.use(handlers)
+
+
+
+async function setBotCommands() {
+  await bot.api.setMyCommands([
+    { command: 'start', description: '📊 Посмотреть инструкцию'},
+    { command: 'income', description: '💰 Добавить доход' },
+    { command: 'expense', description: '💸 Добавить расход' },
+  ], {
+    language_code: 'ru' 
+  });
+}
+
+setBotCommands().catch(console.error);
+
 
 bot.catch((err) => {
   const ctx = err.ctx;

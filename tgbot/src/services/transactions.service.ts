@@ -4,7 +4,6 @@ import type { TransactionModel } from '../../generated/prisma/models/Transaction
 
 export class TransactionService {
   static async create(userId: string, data: {
-    walletId: string;
     categoryId: string;
     amount: Prisma.Decimal;
     description?: string;
