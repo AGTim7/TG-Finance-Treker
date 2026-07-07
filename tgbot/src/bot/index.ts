@@ -3,6 +3,7 @@ import {conversations} from '@grammyjs/conversations'
 import dotenv from "dotenv";
 import {handleStart} from './handlers/start'
 import { handleIncomeCommand } from "./handlers/income";
+import { handleExpenseCommand } from "./handlers/expense";
 import { MyContext } from '../types/context'
 
 
@@ -19,6 +20,7 @@ bot.use(conversations());
 export const handlers = new Composer<MyContext>();
 handlers.use(handleStart);
 handlers.use(handleIncomeCommand)
+handlers.use(handleExpenseCommand)
 
 bot.use(handlers)
 

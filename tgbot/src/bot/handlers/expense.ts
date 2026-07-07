@@ -10,12 +10,12 @@ import { UserService } from '../../services/users.service'
 import { CategoryService } from '../../services/categories.service'
 import { TransactionService } from '../../services/transactions.service'
 
-export const handleIncomeCommand = new Composer<MyContext>()
+export const handleExpenseCommand = new Composer<MyContext>()
 
-export async function incomeConversation(conversation: MyConversation, ctx: MyConversationContext) {
+export async function expenseConversation(conversation: MyConversation, ctx: MyConversationContext) {
 
   const userTelegramId = ctx.from?.id.toString()
-  const transactionType: TransactionType = "INCOME"
+  const transactionType: TransactionType = "EXPENSE"
   let categoriesList: CategoryModel[] = []
   const keyboard = new InlineKeyboard();
   
@@ -24,12 +24,12 @@ export async function incomeConversation(conversation: MyConversation, ctx: MyCo
     return
   }
 
-  await ctx.reply("💰 Введите сумму дохода (например, 5000):")
+  await ctx.reply("💰 Введите сумму расхода (например, 5000):")
   const amountCtx = await conversation.waitFor("message:text");
   const amountNum = parseFloat(amountCtx.msg.text)
 
   if (isNaN(amountNum) || amountNum <= 0) {
-    await ctx.reply("❌ Некорректная сумма. Процесс отменен. Попробуйте снова: /income")
+    await ctx.reply("❌ Некорректная сумма. Процесс отменен. Попробуйте снова: /expense")
     return
   }
 
@@ -63,15 +63,15 @@ export async function incomeConversation(conversation: MyConversation, ctx: MyCo
       amount: new Prisma.Decimal(amountNum)
     })
 
-    await ctx.reply(`✅ Успешно добавлено: +${amountNum} ₽`);
+    await ctx.reply(`✅ Успешно добавлено: -${amountNum} ₽`);
   } catch (error: any) {
     console.error('Ошибка при сохранении транзакции:', error)
     await ctx.reply(`❌ Ошибка при сохранении: ${error.message}`)
   }
 }
 
-handleIncomeCommand.use(createConversation(incomeConversation, "incomeConversation"))
+handleExpenseCommand.use(createConversation(expenseConversation, "expenseConversation"))
 
-handleIncomeCommand.command('income', async (ctx) => {
-  await ctx.conversation.enter("incomeConversation")
+handleExpenseCommand.command('expense', async (ctx) => {
+  await ctx.conversation.enter("expenseConversation")
 });
