@@ -15,6 +15,7 @@ generated/
 out/
 .tsbuildinfo
 
+.firebaserc
 
 .vite/
 .eslintcache
