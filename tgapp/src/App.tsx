@@ -1,11 +1,13 @@
 
-
 function App() {
 
   window.Telegram?.WebApp?.ready()
 
+
   return (
-    <div>privet</div>
+    <div className="bg-tg-bg">
+    
+    </div>
   )
 }
 
