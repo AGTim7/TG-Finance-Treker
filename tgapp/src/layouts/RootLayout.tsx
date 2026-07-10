@@ -1,0 +1,68 @@
+import { Outlet, useNavigate, useLocation } from "react-router"
+import { Home, BarChart3, ListTodo, Lightbulb, Settings } from "lucide-react"
+import { triggerHaptic } from "@/utils/triggerHaptic"
+
+export default function RootLayout() {
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  const handleNavigation = (path: string) => {
+    triggerHaptic("selection")
+    navigate(path)
+  }
+
+  const isActive = (path: string) => location.pathname === path
+
+  return (
+    <div className="bg-tg-bg max-w-110 min-h-screen mx-auto flex flex-col relative">
+      
+      <main className="flex-1 w-full">
+        <Outlet />
+      </main>
+
+
+      <nav className="fixed bottom-0 left-0 right-0 h-18 pb-safe border-t border-t-tg-hint/10 bg-tg-secondary-bg flex justify-around items-center z-50 px-2 shadow-sm">
+        <button 
+          onClick={() => handleNavigation("/")}
+          className={`flex flex-col items-center gap-1 flex-1 py-1 transition-all ${isActive("/") ? "text-emerald-500 font-semibold" : "text-tg-hint"}`}
+        >
+          <Home size={22} className={isActive("/") ? "scale-105 text-emerald-500" : ""} />
+          <span className="text-[10px]">Главное</span>
+        </button>
+        
+        <button 
+          onClick={() => handleNavigation("/analysis")}
+          className={`flex flex-col items-center gap-1 flex-1 py-1 transition-all ${isActive("/analysis") ? "text-emerald-500 font-semibold" : "text-tg-hint"}`}
+        >
+          <BarChart3 size={22} className={isActive("/analysis") ? "scale-105 text-emerald-500" : ""} />
+          <span className="text-[10px]">Анализ</span>
+        </button>
+        
+        <button 
+          onClick={() => handleNavigation("/history")}
+          className={`flex flex-col items-center gap-1 flex-1 py-1 transition-all ${isActive("/history") ? "text-emerald-500 font-semibold" : "text-tg-hint"}`}
+        >
+          <ListTodo size={22} className={isActive("/history") ? "scale-105 text-emerald-500" : ""} />
+          <span className="text-[10px]">История</span>
+        </button>
+
+        <button 
+          onClick={() => handleNavigation("/useful")}
+          className={`flex flex-col items-center gap-1 flex-1 py-1 transition-all ${isActive("/useful") ? "text-emerald-500 font-semibold" : "text-tg-hint"}`}
+        >
+          <Lightbulb size={22} className={isActive("/useful") ? "scale-105 text-emerald-500" : ""} />
+          <span className="text-[10px]">Полезное</span>
+        </button>
+        
+        <button 
+          onClick={() => handleNavigation("/settings")}
+          className={`flex flex-col items-center gap-1 flex-1 py-1 transition-all ${isActive("/settings") ? "text-emerald-500 font-semibold" : "text-tg-hint"}`}
+        >
+          <Settings size={22} className={isActive("/settings") ? "scale-105 text-emerald-500" : ""} />
+          <span className="text-[10px]">Настройки</span>
+        </button>
+      </nav>
+
+    </div>
+  )
+}

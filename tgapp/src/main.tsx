@@ -1,10 +1,13 @@
 import './index.css'
 import { StrictMode } from 'react'
+import { HashRouter } from 'react-router'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
-  </StrictMode>,
+    <HashRouter>
+      <App />
+    </HashRouter>
+  </StrictMode>
 )
