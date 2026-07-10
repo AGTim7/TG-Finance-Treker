@@ -2,8 +2,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress, ProgressTrack, ProgressIndicator } from "@/components/ui/progress";
 import { ChevronRight, ShoppingBag, Coffee, Car, Gamepad2 
 } from 'lucide-react'
+import { triggerHaptic } from "@/utils/triggerHaptic"
+import { useNavigate } from "react-router"
 
 function ExpensesTopCard() {
+
+  const navigate = useNavigate()
+
+  const handleNavigation = (path: string) => {
+      triggerHaptic("selection")
+      navigate(path)
+  }
+
+
   return (
     <div>
       {/* 4. ТОП РАСХОДОВ */}
@@ -11,7 +22,10 @@ function ExpensesTopCard() {
         <CardContent className="p-4 flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-base">Топ расходов</h3>
-            <button className="text-xs text-tg-hint flex items-center gap-0.5 font-medium hover:opacity-80">
+            <button
+              onClick={() => handleNavigation("/analysis")}
+              className="text-xs text-tg-hint flex items-center gap-0.5 font-medium hover:opacity-80"
+            >
               Смотреть все <ChevronRight size={14} />
             </button>
           </div>

@@ -7,6 +7,8 @@ import { triggerHaptic } from '../utils/triggerHaptic';
 
 import RecentTransactionsCard from "@/components/RecentTransactionsCard";
 import ExpensesTopCard from "@/components/ExpensesTopCard";
+import TransactionDialog from "@/components/TransactionDialog";
+
 
 export default function MainPage() {
   return (
@@ -21,29 +23,14 @@ export default function MainPage() {
           <div className="text-4xl font-bold tracking-tight flex items-baseline gap-1">
             <span className="text-3xl font-semibold">₽</span> 124 580<span className="text-xl text-tg-subtitle-text">,00</span>
           </div>
-          <div className="mt-2 self-start flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
-            <ArrowUpRight size={14} />
-            <span>+12,4% за месяц</span>
-          </div>
+
         </CardContent>
       </Card>
 
       {/* 2. КНОПКИ ДЕЙСТВИЯ (ДОХОД / РАСХОД) */}
       <div className="grid grid-cols-2 gap-3">
-        <Button 
-          className="h-12 rounded-xl text-sm font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1.5 border-none transition-all shadow-none"
-          onClick={() => triggerHaptic('medium')}
-        >
-          <ArrowUpRight size={18} className="p-0.5 rounded-full bg-emerald-500 text-white" />
-          + Доход
-        </Button>
-        <Button 
-          className="h-12 rounded-xl text-sm font-semibold bg-tg-destructive-text/10 hover:bg-tg-destructive-text/20 text-tg-destructive-text flex items-center justify-center gap-1.5 border-none transition-all shadow-none"
-          onClick={() => triggerHaptic('medium')}
-        >
-          <ArrowDownLeft size={18} className="p-0.5 rounded-full bg-tg-destructive-text text-white" />
-          – Расход
-        </Button>
+        <TransactionDialog type="income"/>
+        <TransactionDialog type="expense"/>
       </div>
 
       <RecentTransactionsCard/>

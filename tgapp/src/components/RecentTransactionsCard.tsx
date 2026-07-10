@@ -1,9 +1,18 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { ChevronRight, ShoppingBag, Coffee, Car, Wallet,
 } from 'lucide-react'
-
+import { triggerHaptic } from "@/utils/triggerHaptic"
+import { useNavigate } from "react-router"
 
 function RecentTransactionsCard() {
+
+  const navigate = useNavigate()
+
+  const handleNavigation = (path: string) => {
+      triggerHaptic("selection")
+      navigate(path)
+  }
+
   return (
     <div>
       {/* 3. ПОСЛЕДНИЕ ТРАНЗАКЦИИ */}
@@ -11,7 +20,10 @@ function RecentTransactionsCard() {
         <CardContent className="p-4 flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-base">Последние транзакции</h3>
-            <button className="text-xs text-tg-hint flex items-center gap-0.5 font-medium hover:opacity-80">
+            <button 
+              onClick={() => handleNavigation("/history")}
+              className="text-xs text-tg-hint flex items-center gap-0.5 font-medium hover:opacity-80"
+            >
               Смотреть все <ChevronRight size={14} />
             </button>
           </div>

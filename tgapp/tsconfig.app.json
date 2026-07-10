@@ -9,7 +9,8 @@
     "skipLibCheck": true,
 
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@tgbot-types": ["./src/generated/prisma/models/*"]
     },
 
     /* Bundler mode */
@@ -23,7 +24,7 @@
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "erasableSyntaxOnly": true,
+    "erasableSyntaxOnly": false,
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"]
