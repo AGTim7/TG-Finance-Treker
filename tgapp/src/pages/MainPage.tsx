@@ -1,9 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { 
-  ArrowUpRight, ArrowDownLeft
-} from 'lucide-react'
-import { triggerHaptic } from '../utils/triggerHaptic';
+
 
 import RecentTransactionsCard from "@/components/RecentTransactionsCard";
 import ExpensesTopCard from "@/components/ExpensesTopCard";
