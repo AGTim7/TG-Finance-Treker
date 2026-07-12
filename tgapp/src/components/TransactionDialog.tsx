@@ -107,7 +107,6 @@ function TransactionDialog({ type }: TransactionDialogProps) {
       ...data,
       amount: Number(data.amount),
       type: isIncome ? TransactionType.INCOME : TransactionType.EXPENSE,
-      date: new Date().toISOString().split('T')[0]
     }
     console.log('Данные отправлены:', finalData)
     setIsOpen(false)
@@ -181,7 +180,7 @@ function TransactionDialog({ type }: TransactionDialogProps) {
                           if (parts.length > 2) {
                             val = parts[0] + '.' + parts.slice(1).join('')
                           }
-
+                          
                           const refinedParts = val.split('.')
                           if (refinedParts[0].length > 10) {
                             refinedParts[0] = refinedParts[0].slice(0, 10)
