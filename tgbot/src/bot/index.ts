@@ -1,57 +1,51 @@
-import { Bot, Composer, GrammyError, HttpError } from "grammy";
-import {conversations} from '@grammyjs/conversations'
-import dotenv from "dotenv";
-import {handleStart} from './handlers/start'
-import { handleIncomeCommand } from "./handlers/income";
-import { handleExpenseCommand } from "./handlers/expense";
-import { MyContext } from '../types/context'
+import { conversations } from '@grammyjs/conversations'
+import { Bot, Composer, GrammyError, HttpError } from 'grammy'
 
+import type { MyContext } from '../types/context'
+import { env } from '../config/env'
+import { conversationStorage } from './conversationStorage'
+import { handleExpenseCommand } from './handlers/expense'
+import { handleIncomeCommand } from './handlers/income'
+import { handleStart } from './handlers/start'
 
-dotenv.config()
-const token = process.env.BOT_TOKEN;
-if (!token) {
-  throw new Error("Ошибка: Переменная BOT_TOKEN не задана в файле .env");
-}
-const bot = new Bot<MyContext>(token);
-bot.use(conversations());
+const bot = new Bot<MyContext>(env.BOT_TOKEN)
+bot.use(conversations({ storage: conversationStorage }))
 
-
-
-export const handlers = new Composer<MyContext>();
-handlers.use(handleStart);
+export const handlers = new Composer<MyContext>()
+handlers.use(handleStart)
 handlers.use(handleIncomeCommand)
 handlers.use(handleExpenseCommand)
-
 bot.use(handlers)
 
+bot.catch((error) => {
+  const ctx = error.ctx
+  console.error(`Failed to process Telegram update ${ctx.update.update_id}:`)
 
+  if (error.error instanceof GrammyError) {
+    console.error('Telegram API error:', error.error.description)
+  } else if (error.error instanceof HttpError) {
+    console.error('Telegram network error:', error.error.message)
+  } else {
+    console.error('Unknown Telegram error:', error.error)
+  }
+})
 
-async function setBotCommands() {
-  await bot.api.setMyCommands([
-    { command: 'start', description: '📊 Посмотреть инструкцию'},
-    { command: 'income', description: '💰 Добавить доход' },
-    { command: 'expense', description: '💸 Добавить расход' },
-  ], {
-    language_code: 'ru' 
-  });
+export const BOT_COMMANDS = [
+    { command: 'start', description: 'Посмотреть инструкцию' },
+    { command: 'income', description: 'Добавить доход' },
+    { command: 'expense', description: 'Добавить расход' },
+] as const
+
+export async function configureBotCommands() {
+  await bot.api.setMyCommands([...BOT_COMMANDS], { language_code: 'ru' })
 }
 
-setBotCommands().catch(console.error);
+export async function startBot() {
+  await configureBotCommands()
 
-
-bot.catch((err) => {
-  const ctx = err.ctx;
-  console.error(`Ошибка при обработке апдейта ${ctx.update.update_id}:`);
-  
-  const e = err.error;
-  if (e instanceof GrammyError) {
-    console.error('Ошибка в Telegram API:', e.description);
-  } else if (e instanceof HttpError) {
-    console.error('Ошибка сети:', e.message);
-  } else {
-    console.error('Неизвестная ошибка:', e);
-  }
-});
-
+  await bot.start({
+    onStart: () => console.log('Bot started'),
+  })
+}
 
 export default bot

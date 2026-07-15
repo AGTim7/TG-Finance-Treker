@@ -1,0 +1,618 @@
+# FinanceTrackerBot: поддержка и эксплуатация
+
+Версия памятки: 16 июля 2026
+
+Этот файл написан в Markdown, хотя имеет расширение TXT. После переноса в Obsidian его можно переименовать в `FinanceTrackerBot.md`.
+
+ВАЖНО: здесь намеренно нет значений секретов. Никогда не добавляй в заметки, Git или сообщения `BOT_TOKEN`, `DATABASE_URL`, `TELEGRAM_WEBHOOK_SECRET` и Telegram `initData`.
+
+---
+
+## 1. Паспорт проекта
+
+- Mini App: https://financetrackerapp07.web.app
+- Telegram-бот: https://t.me/financeOneTrackerBot
+- Backend: https://finance-tracker-api-two.vercel.app
+- Health: https://finance-tracker-api-two.vercel.app/api/health
+- Readiness: https://finance-tracker-api-two.vercel.app/api/ready
+- Webhook: https://finance-tracker-api-two.vercel.app/api/telegram/webhook
+- Frontend: Firebase Hosting, проект `financetrackerapp07`
+- Backend: Vercel Functions, проект `finance-tracker-api`
+- База: Neon PostgreSQL, проект `finance-tracker-db`, база `neondb`
+
+Папки репозитория:
+
+- `tgbot` содержит Express API, Telegram-бота, Prisma и миграции.
+- `tgapp` содержит React Mini App.
+
+---
+
+## 2. Как работает система
+
+### Запрос из Mini App
+
+1. Пользователь открывает приложение из Telegram.
+2. Telegram помещает подписанную строку в `window.Telegram.WebApp.initData`.
+3. Axios добавляет ее в запрос:
+
+```http
+Authorization: tma <initData>
+```
+
+4. Backend проверяет HMAC-подпись с помощью `BOT_TOKEN`.
+5. Пользователь создается или обновляется по проверенному Telegram ID.
+6. Route вызывает service, service работает с PostgreSQL через Prisma.
+7. TanStack Query получает ответ и обновляет экран.
+
+JWT не используется. JWT не шифрует данные, а Telegram уже предоставляет подписанное `initData`. Второй токен только усложнил бы авторизацию.
+
+### Запрос из Telegram-бота
+
+1. Telegram отправляет update на production webhook.
+2. grammY проверяет `TELEGRAM_WEBHOOK_SECRET`.
+3. `/income` или `/expense` запускает пошаговый диалог.
+4. Состояние сохраняется в `bot_conversation`.
+5. Готовая транзакция записывается в общую таблицу `transaction`.
+
+Production использует webhook. Локальная разработка использует polling.
+
+---
+
+## 3. Backend
+
+### Точки входа
+
+- `tgbot/src/app.ts` собирает Express app.
+- `tgbot/src/index.ts` запускает локальный HTTP-сервер и polling.
+- `tgbot/api/index.ts` экспортирует app для Vercel.
+- `tgbot/vercel.json` направляет запросы в Vercel Function.
+
+### Middleware
+
+- Helmet добавляет безопасные HTTP-заголовки.
+- CORS принимает только origin из `CORS_ORIGINS`.
+- Rate limit ограничивает частоту запросов.
+- JSON limit равен 32 KB.
+- Telegram auth проверяет `Authorization: tma ...`.
+- Not found и error middleware формируют единые ответы.
+- `TRUST_PROXY=true` используется за proxy Vercel.
+
+Не принимай `userId` или `telegramId` из тела запроса. Владельца данных backend всегда берет только из проверенного `initData`.
+
+### API
+
+Публичные endpoint:
+
+- `GET /api/health` проверяет HTTP-сервер.
+- `GET /api/ready` проверяет сервер и PostgreSQL.
+- `POST /api/telegram/webhook` принимает Telegram updates и проверяет secret.
+
+Endpoint с Telegram auth:
+
+- `GET /api/categories?type=INCOME|EXPENSE`
+- `GET /api/dashboard`
+- `POST /api/transactions`
+- `GET /api/transactions?page=1&limit=20`
+
+Пагинация начинается с page 1. Limit по умолчанию 20, максимум 50. Ответ содержит `items`, `page`, `limit`, `total`, `hasMore`.
+
+### Проверка транзакции
+
+Backend проверяет:
+
+- существование категории;
+- принадлежность категории пользователю или глобальный статус;
+- корректный тип INCOME/EXPENSE;
+- сумму больше нуля и не больше `9999999999.99`;
+- не больше двух знаков после запятой;
+- описание не длиннее 500 символов.
+
+### Dashboard
+
+`GET /api/dashboard` возвращает общий баланс, четыре последние транзакции, четыре крупнейшие категории расходов текущего месяца и границы периода.
+
+### Bot conversation
+
+Состояние диалогов хранится в PostgreSQL. Это важно для Vercel Functions: память serverless-процесса может исчезнуть после любого запроса или перезапуска.
+
+---
+
+## 4. Frontend
+
+### API-клиент
+
+`tgapp/src/api/client.ts`:
+
+- берет адрес API из `VITE_API_URL`;
+- локально использует `http://127.0.0.1:3000/api`;
+- добавляет Telegram initData в Authorization;
+- имеет timeout 15 секунд;
+- преобразует 401, network error и server error в понятные сообщения.
+
+Переменные `VITE_*` публичны и попадают в JavaScript bundle. Секреты в них хранить запрещено.
+
+### Главная страница
+
+Главная страница получает `/api/dashboard` и показывает баланс, последние операции и расходы по категориям. Реализованы loading, empty, error и retry состояния.
+
+### Создание транзакции
+
+1. Пользователь выбирает доход или расход.
+2. Загружаются категории выбранного типа.
+3. React Hook Form и Zod проверяют форму.
+4. Выполняется `POST /api/transactions`.
+5. Dashboard и transactions queries инвалидируются.
+6. Экран получает свежие данные и вызывает Telegram haptic feedback.
+
+### Текущее ограничение
+
+Главная страница готова. История, аналитика, полезное и настройки пока заготовки. API истории с пагинацией уже существует, но UI еще не подключен.
+
+---
+
+## 5. База данных
+
+### Таблицы
+
+`user`:
+
+- внутренний UUID;
+- уникальный Telegram ID;
+- username;
+- валюта, по умолчанию RUB;
+- дата создания.
+
+`category`:
+
+- UUID;
+- `userId=null` у глобальной категории;
+- name, type, color, emoji.
+
+`transaction`:
+
+- UUID;
+- пользователь и категория;
+- `Decimal(12,2)`;
+- описание;
+- дата.
+
+`bot_conversation`:
+
+- Telegram chat ID;
+- JSON-состояние;
+- дата обновления.
+
+`_prisma_migrations` хранит историю Prisma. Ее нельзя редактировать вручную без точного плана восстановления.
+
+### Neon Console
+
+1. Открой https://console.neon.tech.
+2. Выбери `finance-tracker-db`.
+3. Выбери базу `neondb`.
+4. Используй Tables или SQL Editor.
+
+Безопасные запросы:
+
+```sql
+SELECT COUNT(*) AS users FROM "user";
+
+SELECT COUNT(*) AS transactions FROM "transaction";
+
+SELECT id, "telegramId", username, currency, "createdAt"
+FROM "user"
+ORDER BY "createdAt" DESC
+LIMIT 20;
+
+SELECT
+  t.id,
+  t.amount,
+  t.description,
+  t.date,
+  c.name AS category,
+  c.type,
+  u."telegramId"
+FROM "transaction" t
+JOIN "category" c ON c.id = t."categoryId"
+JOIN "user" u ON u.id = t."userId"
+ORDER BY t.date DESC
+LIMIT 50;
+
+SELECT name, type, emoji, color, "userId"
+FROM "category"
+ORDER BY type, name;
+
+SELECT "chatId", "updatedAt"
+FROM "bot_conversation"
+ORDER BY "updatedAt" DESC;
+```
+
+`user` и `transaction` заключаются в двойные кавычки из-за специальных слов PostgreSQL.
+
+### Prisma Studio
+
+Локальная база:
+
+```powershell
+cd tgbot
+npx prisma studio
+```
+
+Production-база через Vercel:
+
+```powershell
+cd tgbot
+npx vercel env run --environment production -- npx prisma studio
+```
+
+Открой http://localhost:5555. Prisma Studio позволяет изменять production-данные, поэтому для простой проверки лучше использовать SELECT в Neon.
+
+---
+
+## 6. Переменные окружения
+
+Локальный backend использует `tgbot/.env`, который игнорируется Git. Шаблон находится в `tgbot/.env.example`.
+
+Production backend хранит переменные в Vercel Project Settings:
+
+- `BOT_TOKEN`
+- `DATABASE_URL`
+- `NODE_ENV=production`
+- `PROCESS_ROLE=api`
+- `TELEGRAM_UPDATE_MODE=webhook`
+- `TELEGRAM_WEBHOOK_SECRET`
+- `TELEGRAM_WEBHOOK_URL`
+- `TELEGRAM_MINI_APP_URL`
+- `CORS_ORIGINS`
+- `TELEGRAM_INIT_DATA_MAX_AGE_SECONDS`
+- `RATE_LIMIT_WINDOW_MS`
+- `RATE_LIMIT_MAX_REQUESTS`
+- `TRUST_PROXY=true`
+
+Frontend использует только публичный `VITE_API_URL` из `tgapp/.env.production`.
+
+Если sensitive-переменная потеряна, ее нужно заменить новой. Не пытайся восстанавливать secret из логов или frontend bundle.
+
+---
+
+## 7. Локальный запуск
+
+Backend:
+
+```powershell
+cd tgbot
+npm install
+npm run db:deploy
+npm run db:seed
+npm run dev
+```
+
+Локально используй:
+
+```dotenv
+NODE_ENV=development
+PROCESS_ROLE=all
+TELEGRAM_UPDATE_MODE=polling
+CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+API_PORT=3000
+TRUST_PROXY=false
+```
+
+Frontend:
+
+```powershell
+cd tgapp
+npm install
+npm run dev
+```
+
+Обычный браузер не предоставляет Telegram initData. Защищенные запросы полностью работают внутри Mini App либо с временным валидным dev initData, которое нельзя коммитить.
+
+---
+
+## 8. Проверки и deployment
+
+Перед каждым deployment:
+
+```powershell
+cd tgbot
+npm test
+npm run build
+
+cd ../tgapp
+npm test
+npm run lint
+npm run build
+```
+
+Backend:
+
+```powershell
+cd tgbot
+npx vercel deploy --prod
+```
+
+Frontend:
+
+```powershell
+cd tgapp
+npx firebase-tools deploy --only hosting --project financetrackerapp07
+```
+
+Production migrations:
+
+```powershell
+cd tgbot
+npx vercel env run --environment production -- npm run db:deploy
+```
+
+Не используй `prisma db push` для production. Перед destructive migration создай backup или Neon branch и прочитай SQL миграции.
+
+После deployment:
+
+1. Проверь `/api/health`.
+2. Проверь `/api/ready`.
+3. Открой бота и Mini App.
+4. Создай тестовый доход и расход.
+5. Проверь dashboard.
+6. Проверь записи в Neon.
+7. Посмотри Vercel Runtime Logs.
+
+---
+
+## 9. Telegram webhook
+
+Нормальное состояние:
+
+- URL ведет на production backend;
+- `pending_update_count` равен 0 или быстро уменьшается;
+- `last_error_message` отсутствует;
+- `max_connections` равен 1.
+
+Проверка:
+
+```powershell
+Invoke-RestMethod "https://api.telegram.org/bot$env:BOT_TOKEN/getWebhookInfo"
+```
+
+Повторная настройка выполняется скриптом:
+
+```powershell
+cd tgbot
+npm run telegram:setup-webhook
+```
+
+Скрипту нужны `BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_WEBHOOK_URL` и `TELEGRAM_MINI_APP_URL`.
+
+Создать новый webhook secret:
+
+```powershell
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+```
+
+При ротации сначала обнови secret в Vercel, задеплой backend, затем настрой Telegram с тем же значением и проверь `/start`. Если Telegram и backend знают разные значения, бот перестанет отвечать.
+
+---
+
+## 10. Диагностика поломок
+
+### Mini App не открывается или старая версия
+
+- Проверь Firebase URL в браузере.
+- Проверь последний Hosting release.
+- Выполни frontend build и deploy повторно.
+- Полностью закрой Telegram WebView и открой заново.
+- Проверь URL menu button у бота.
+
+### Network Error
+
+1. Проверь `/api/health`.
+2. Проверь `/api/ready`.
+3. Проверь `VITE_API_URL`.
+4. Посмотри Vercel Runtime Logs.
+
+Health не работает: проблема Vercel/deployment. Health работает, ready нет: проблема Neon или `DATABASE_URL`.
+
+### 401 Unauthorized
+
+- Mini App открыт не внутри Telegram.
+- initData отсутствует или устарел.
+- В Vercel установлен токен другого бота.
+- Authorization не начинается с `tma `.
+
+Закрой Mini App и открой заново. Не отключай проверку подписи ради быстрого исправления.
+
+### 403 Forbidden
+
+Проверь `CORS_ORIGINS` и доступ к категории. Production origins:
+
+```text
+https://financetrackerapp07.web.app
+https://financetrackerapp07.firebaseapp.com
+```
+
+После изменения Vercel environment variable нужен новый deployment. Не используй `*` в production.
+
+### 429 Too Many Requests
+
+Проверь, не создает ли frontend цикл запросов и повторные refetch. Только после этого увеличивай лимит. Базовая настройка: 120 запросов за 60 секунд.
+
+### 500 или ready 503
+
+- Проверь Vercel Runtime Logs.
+- Проверь `DATABASE_URL`.
+- Проверь состояние Neon и лимиты соединений.
+- Проверь примененные миграции.
+- Не публикуй строку подключения при обращении за помощью.
+
+### Категории пустые
+
+```sql
+SELECT type, COUNT(*)
+FROM "category"
+WHERE "userId" IS NULL
+GROUP BY type;
+```
+
+Если глобальных категорий нет:
+
+```powershell
+cd tgbot
+npx vercel env run --environment production -- npm run db:seed
+```
+
+### Транзакция не создается
+
+- 400: сумма, описание или categoryId не прошли проверку.
+- 401: Telegram auth.
+- 403: CORS или чужая категория.
+- 404: категория не найдена.
+- 429: rate limit.
+- 500: backend или Prisma.
+
+### Бот не отвечает
+
+1. Проверь health и ready.
+2. Проверь `getWebhookInfo`.
+3. Посмотри pending updates и last error.
+4. Проверь `TELEGRAM_UPDATE_MODE=webhook`.
+5. Проверь URL и совпадение webhook secret.
+6. Повтори setup webhook.
+
+### Бот забывает шаг диалога
+
+```sql
+SELECT "chatId", state, "updatedAt"
+FROM "bot_conversation"
+ORDER BY "updatedAt" DESC
+LIMIT 20;
+```
+
+Проверь миграцию `add_bot_conversation_storage`, Prisma logs и подключение к правильной БД.
+
+### Миграция не применяется
+
+- Не удаляй migration-файлы, уже примененные в production.
+- Прочитай точную ошибку `prisma migrate deploy`.
+- Сверь `_prisma_migrations` с папкой миграций.
+- Создай Neon branch или backup до ручных действий.
+- Не помечай миграцию resolved, не понимая состояния схемы.
+
+### Секрет попал в Git или сообщение
+
+Считай его скомпрометированным:
+
+1. BOT_TOKEN отозвать через BotFather.
+2. Credentials базы заменить в Neon.
+3. Webhook secret сгенерировать заново.
+4. Обновить Vercel variables.
+5. Задеплоить backend и настроить webhook.
+6. Удалить секрет из Git history отдельной процедурой.
+
+Удаление строки из последнего файла не удаляет секрет из истории Git.
+
+---
+
+## 11. Логи, откат и данные
+
+### Vercel
+
+В проекте `finance-tracker-api` проверяй Deployments, Runtime Logs, Environment Variables и Domains.
+
+### Firebase
+
+В `financetrackerapp07` проверяй Hosting releases. Предыдущий релиз можно использовать для rollback frontend.
+
+### Neon
+
+Проверяй размер базы, лимиты free plan, connections и branches. Перед опасными изменениями создавай отдельный Neon branch или backup.
+
+### Backend rollback
+
+В Vercel можно назначить предыдущий успешный deployment production-версией. После отката проверь health, ready и webhook.
+
+Откат кода не откатывает схему БД. Миграции должны быть совместимы с предыдущей версией или иметь отдельный план восстановления.
+
+Никогда не выполняй массовый DELETE, DROP TABLE или destructive migration без резервной копии.
+
+---
+
+## 12. Git workflow
+
+```powershell
+git status
+git switch main
+git pull --ff-only
+git switch -c feature/short-name
+```
+
+После работы:
+
+```powershell
+git diff
+git add <нужные-файлы>
+git diff --cached
+git commit -m "feat: краткое описание"
+git push -u origin feature/short-name
+```
+
+Для одного разработчика feature-ветки полезны как точка проверки и отката. Не применяй или не удаляй stash, пока отдельно не просмотрел его содержимое.
+
+Проверка Git:
+
+```powershell
+git status --short --branch
+git stash list
+git log --oneline --decorate -10
+```
+
+---
+
+## 13. Известные ограничения
+
+- UI истории с пагинацией еще не подключен.
+- Аналитика, настройки и полезное пока заготовки.
+- Frontend bundle около 595 KB и требует дальнейшего разделения.
+- Frontend tests пока покрывают форматирование.
+- Нужны integration и E2E tests.
+- Backend audit показывает четыре moderate warnings в транзитивной зависимости Prisma через `@hono/node-server`. Приложение не использует затронутый Hono `serveStatic`, но зависимости нужно регулярно обновлять и перепроверять.
+- Free plans Vercel, Firebase и Neon имеют квоты.
+
+---
+
+## 14. Чек-лист перед коммитом
+
+- [ ] В status нет неожиданных файлов.
+- [ ] В diff нет `.env`, токенов, initData и паролей.
+- [ ] Backend tests и build проходят.
+- [ ] Frontend tests, lint и build проходят.
+- [ ] SQL миграций прочитан вручную.
+- [ ] Staged только относящиеся к задаче файлы.
+- [ ] Проверен `git diff --cached`.
+
+## 15. Чек-лист после deployment
+
+- [ ] Vercel deployment успешен.
+- [ ] Firebase release успешен.
+- [ ] Health и ready возвращают 200.
+- [ ] Webhook не сообщает об ошибке.
+- [ ] `/start` отвечает.
+- [ ] Mini App открывается.
+- [ ] Dashboard загружается.
+- [ ] Доход и расход создаются.
+- [ ] Новые строки видны в Neon.
+- [ ] В Runtime Logs нет повторяющихся 500.
+
+---
+
+## 16. Диагностика за одну минуту
+
+1. Проверь health.
+2. Проверь ready.
+3. Посмотри HTTP status неудачного запроса.
+4. 401: initData или BOT_TOKEN.
+5. 403: CORS или категория.
+6. 429: частота запросов.
+7. 500/503: Vercel Logs, Prisma и Neon.
+8. API работает, бот молчит: webhook info и secret.
+9. API работает, UI старый: Firebase release и Telegram WebView cache.
+10. После исправления повтори smoke test и проверь БД.

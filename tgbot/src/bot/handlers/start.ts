@@ -1,25 +1,25 @@
-import bot from '../index' 
-import {Composer} from 'grammy'
-import {UserService} from '../../services/users.service'
+import { Composer } from 'grammy'
+
+import type { MyContext } from '../../types/context'
+import { UserService } from '../../services/users.service'
 import getStartMessage from '../../content/botTexts'
 
+export const handleStart = new Composer<MyContext>()
 
-
-export const handleStart = new Composer();
-
-handleStart.command("start", async (ctx) => {
-  const telegramId = ctx.from?.id.toString();
-  const username = ctx.from?.username;
+handleStart.command('start', async (ctx) => {
+  const telegramId = ctx.from?.id.toString()
+  const username = ctx.from?.username
 
   if (!telegramId) {
-    return ctx.reply("Ошибка: Не удалось получить ваш Telegram ID.");
+    await ctx.reply('Не удалось получить ваш Telegram ID.')
+    return
   }
 
-  try{
-    await UserService.handleStartCommand(telegramId, username);
-      await ctx.reply(getStartMessage(username))
+  try {
+    await UserService.upsertTelegramUser(telegramId, username)
+    await ctx.reply(getStartMessage(username))
   } catch (error) {
-    ctx.reply("Ошибка: Не удалось обработать команду.");
+    console.error('Failed to handle /start:', error)
+    await ctx.reply('Не удалось обработать команду. Попробуйте позже.')
   }
-
-});
+})

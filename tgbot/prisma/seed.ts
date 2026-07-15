@@ -4,7 +4,11 @@ import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/client";
 
-const connectionString = `${process.env.DATABASE_URL}`;
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  throw new Error('DATABASE_URL is not configured');
+}
 
 const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });
@@ -34,18 +38,29 @@ async function main() {
 
 
   for (const category of GLOBAL_CATEGORIES) {
-    await prisma.category.create({
-      data: {
+    const result = await prisma.category.updateMany({
+      where: {
         name: category.name,
         type: category.type,
+        userId: null,
+      },
+      data: {
         emoji: category.emoji,
         color: category.color,
-        userId: null
-      }
+      },
     });
+
+    if (result.count === 0) {
+      await prisma.category.create({
+        data: {
+          ...category,
+          userId: null,
+        },
+      });
+    }
   }
 
-  console.log(`База успешно заполнена! Создано ${GLOBAL_CATEGORIES.length} категорий.`);
+  console.log(`Базовые категории синхронизированы: ${GLOBAL_CATEGORIES.length}.`);
 }
 
 main()

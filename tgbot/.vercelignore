@@ -1,0 +1,6 @@
+.env
+.env.*
+.vercel
+dist
+generated
+node_modules

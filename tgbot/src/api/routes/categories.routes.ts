@@ -1,28 +1,22 @@
-import { Prisma } from '@prisma/client'
 import { Router } from 'express'
+import type { TransactionType } from '../../../generated/prisma/enums'
 
 import { ApiError } from '../errors/apiError'
-import { prisma } from '../../prisma/client'
+import { CategoryService } from '../../services/categories.service'
 
 const router = Router()
 
 router.get('/', async (req, res, next) => {
   try {
     const type = req.query.type
-
     if (type !== undefined && type !== 'INCOME' && type !== 'EXPENSE') {
       throw new ApiError(400, 'type must be INCOME or EXPENSE')
     }
 
-    const where: Prisma.CategoryWhereInput = {
-      OR: [{ userId: null }, { userId: req.user!.id }],
-      ...(type ? { type } : {}),
-    }
-
-    const items = await prisma.category.findMany({
-      where,
-      orderBy: [{ type: 'asc' }, { name: 'asc' }],
-    })
+    const items = await CategoryService.getAvailableForUser(
+      req.user!.id,
+      type as TransactionType | undefined,
+    )
 
     return res.json({ items })
   } catch (error) {

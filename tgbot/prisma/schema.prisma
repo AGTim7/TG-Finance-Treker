@@ -36,6 +36,7 @@ model Category {
   user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
 
+  // Уникальность глобальных name + type обеспечивается partial index в миграции.
   @@map("category")
 }
 
@@ -52,4 +53,12 @@ model Transaction {
 
   @@index([userId, date(sort: Desc)])
   @@map("transaction")
+}
+
+model BotConversation {
+  chatId    String   @id @map("chat_id")
+  state     Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("bot_conversation")
 }

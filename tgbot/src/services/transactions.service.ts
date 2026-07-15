@@ -1,6 +1,8 @@
+import { Prisma } from '../../generated/prisma/client'
+import type { TransactionType } from '../../generated/prisma/enums'
+
 import { prisma } from '../prisma/client'
-import { Prisma } from '@prisma/client'; 
-import type { TransactionModel } from '../../generated/prisma/models/Transaction'
+import { assertTransactionAmount, TransactionAmountError } from '../domain/transactionAmount'
 
 export class TransactionServiceError extends Error {
   constructor(
@@ -13,50 +15,26 @@ export class TransactionServiceError extends Error {
 }
 
 export class TransactionService {
-  static async create(userId: string, data: {
-    categoryId: string;
-    amount: Prisma.Decimal;
-    description?: string;
-  }): Promise<void> {
-    if (data.amount.toNumber() <= 0) {
-      throw new Error('Сумма транзакции должна быть больше нуля');
-    }  
-    
-    await prisma.$transaction(async (tx)=>{
-      
-      const category = await tx.category.findUnique({
-        where: { id: data.categoryId }
-      });
-      
-      if (!category){
-        throw new Error('Категория не найдена! Без категории транкзация не может существовать');
-      }else{
-        await tx.transaction.create({
-          data:{
-            userId,
-            categoryId: data.categoryId,
-            amount: data.amount,
-            description: data.description
-          }
-        })
-      }
-    })
-    
-  }
-
   static async createForUser(userId: string, data: {
     categoryId: string
     amount: Prisma.Decimal
     description?: string
+    expectedType?: TransactionType
   }) {
-    if (data.amount.lessThanOrEqualTo(0)) {
-      throw new TransactionServiceError('amount must be greater than zero', 400)
+    try {
+      assertTransactionAmount(data.amount)
+    } catch (error) {
+      if (error instanceof TransactionAmountError) {
+        throw new TransactionServiceError(error.message, 400)
+      }
+      throw error
     }
 
     const category = await prisma.category.findFirst({
       where: {
         id: data.categoryId,
         OR: [{ userId: null }, { userId }],
+        ...(data.expectedType ? { type: data.expectedType } : {}),
       },
       select: { id: true },
     })
@@ -78,6 +56,10 @@ export class TransactionService {
 
   static async getPageByUserId(userId: string, page: number, limit: number) {
     const skip = (page - 1) * limit
+
+    if (!Number.isSafeInteger(skip)) {
+      throw new TransactionServiceError('Requested page is too large', 400)
+    }
 
     const [items, total] = await prisma.$transaction([
       prisma.transaction.findMany({

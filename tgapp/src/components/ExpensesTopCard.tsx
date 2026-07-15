@@ -1,123 +1,95 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { Progress, ProgressTrack, ProgressIndicator } from "@/components/ui/progress";
-import { ChevronRight, ShoppingBag, Coffee, Car, Gamepad2 
-} from 'lucide-react'
-import { triggerHaptic } from "@/utils/triggerHaptic"
-import { useNavigate } from "react-router"
+import { format } from 'date-fns'
+import { ru } from 'date-fns/locale'
+import { ChevronRight } from 'lucide-react'
+import { useNavigate } from 'react-router'
 
-function ExpensesTopCard() {
+import type { DashboardExpenseCategory } from '@/api/types'
+import { Card, CardContent } from '@/components/ui/card'
+import { Progress, ProgressIndicator, ProgressTrack } from '@/components/ui/progress'
+import { Skeleton } from '@/components/ui/skeleton'
+import { formatMoney } from '@/lib/format'
+import { triggerHaptic } from '@/utils/triggerHaptic'
 
+type ExpensesTopCardProps = {
+  items: DashboardExpenseCategory[]
+  periodFrom?: string
+  isLoading: boolean
+}
+
+function ExpensesTopCard({ items, periodFrom, isLoading }: ExpensesTopCardProps) {
   const navigate = useNavigate()
+  const monthLabel = periodFrom
+    ? format(new Date(periodFrom), 'LLLL', { locale: ru })
+    : ''
 
-  const handleNavigation = (path: string) => {
-      triggerHaptic("selection")
-      navigate(path)
+  const openAnalysis = () => {
+    triggerHaptic('selection')
+    navigate('/analysis')
   }
 
-
   return (
-    <div>
-      {/* 4. ТОП РАСХОДОВ */}
-      <Card className="border-tg-hint/10 bg-tg-section-bg shadow-none rounded-2xl">
-        <CardContent className="p-4 flex flex-col gap-4">
-          <div className="flex items-center justify-between">
+    <Card className="border-tg-hint/10 bg-tg-section-bg shadow-none rounded-2xl">
+      <CardContent className="p-4 flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div>
             <h3 className="font-bold text-base">Топ расходов</h3>
-            <button
-              onClick={() => handleNavigation("/analysis")}
-              className="text-xs text-tg-hint flex items-center gap-0.5 font-medium hover:opacity-80"
-            >
-              Смотреть все <ChevronRight size={14} />
-            </button>
+            {monthLabel && (
+              <p className="text-[11px] capitalize text-tg-subtitle-text">{monthLabel}</p>
+            )}
           </div>
+          <button
+            type="button"
+            onClick={openAnalysis}
+            className="text-xs text-tg-hint flex items-center gap-0.5 font-medium hover:opacity-80"
+          >
+            Смотреть все <ChevronRight size={14} />
+          </button>
+        </div>
 
-          <div className="flex flex-col gap-4">
-            {/* Продукты */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-center text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="p-1 rounded bg-emerald-500/10 text-emerald-600">
-                    <ShoppingBag size={14} />
+        <div className="flex flex-col gap-4">
+          {isLoading && Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="flex flex-col gap-2">
+              <div className="flex justify-between">
+                <Skeleton className="h-4 w-28 bg-tg-secondary-bg" />
+                <Skeleton className="h-4 w-24 bg-tg-secondary-bg" />
+              </div>
+              <Skeleton className="h-1.5 w-full bg-tg-secondary-bg" />
+            </div>
+          ))}
+
+          {!isLoading && items.length === 0 && (
+            <p className="py-4 text-center text-sm text-tg-subtitle-text">
+              В этом месяце расходов нет
+            </p>
+          )}
+
+          {!isLoading && items.map((item) => (
+            <div key={item.category.id} className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <div className="flex min-w-0 items-center gap-2">
+                  <div
+                    className="flex size-6 shrink-0 items-center justify-center rounded-md text-sm"
+                    style={{ backgroundColor: `${item.category.color}18` }}
+                  >
+                    {item.category.emoji}
                   </div>
-                  <span className="font-medium">Продукты</span>
+                  <span className="truncate font-medium">{item.category.name}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-tg-hint">35%</span>
-                  <span className="font-bold">43 680,00 ₽</span>
+                <div className="flex shrink-0 items-center gap-2 tabular-nums">
+                  <span className="text-xs text-tg-hint">{item.percentage}%</span>
+                  <span className="font-bold">{formatMoney(item.amount)} ₽</span>
                 </div>
               </div>
-              <Progress value={35} className="w-full">
+              <Progress value={item.percentage} className="w-full">
                 <ProgressTrack className="h-1.5 bg-tg-secondary-bg">
-                  <ProgressIndicator className="bg-emerald-500" />
+                  <ProgressIndicator style={{ backgroundColor: item.category.color }} />
                 </ProgressTrack>
               </Progress>
             </div>
-
-            {/*  Транспорт */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-center text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="p-1 rounded bg-blue-500/10 text-blue-600">
-                    <Car size={14} />
-                  </div>
-                  <span className="font-medium">Транспорт</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-tg-hint">22%</span>
-                  <span className="font-bold">27 456,00 ₽</span>
-                </div>
-              </div>
-              <Progress value={22} className="w-full">
-                <ProgressTrack className="h-1.5 bg-tg-secondary-bg">
-                  <ProgressIndicator className="bg-blue-500" />
-                </ProgressTrack>
-              </Progress>
-            </div>
-
-            {/* Кафе */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-center text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="p-1 rounded bg-orange-500/10 text-orange-600">
-                    <Coffee size={14} />
-                  </div>
-                  <span className="font-medium">Кафе</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-tg-hint">18%</span>
-                  <span className="font-bold">22 464,00 ₽</span>
-                </div>
-              </div>
-              <Progress value={18} className="w-full">
-                <ProgressTrack className="h-1.5 bg-tg-secondary-bg">
-                  <ProgressIndicator className="bg-orange-500" />
-                </ProgressTrack>
-              </Progress>
-            </div>
-
-            {/* Развлечения */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-center text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="p-1 rounded bg-purple-500/10 text-purple-600">
-                    <Gamepad2 size={14} />
-                  </div>
-                  <span className="font-medium">Развлечения</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-tg-hint">15%</span>
-                  <span className="font-bold">18 720,00 ₽</span>
-                </div>
-              </div>
-              <Progress value={15} className="w-full">
-                <ProgressTrack className="h-1.5 bg-tg-secondary-bg">
-                  <ProgressIndicator className="bg-purple-500" />
-                </ProgressTrack>
-              </Progress>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
