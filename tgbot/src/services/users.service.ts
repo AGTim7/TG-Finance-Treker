@@ -2,6 +2,29 @@ import { prisma } from '../prisma/client'
 import type { UserModel } from '../../generated/prisma/models/User'
 
 export class UserService {
+  static async upsertTelegramUser(telegramId: string, username?: string) {
+    const user = await prisma.user.upsert({
+      where: { telegramId },
+      update: { username },
+      create: {
+        telegramId,
+        username,
+        currency: 'RUB',
+      },
+      select: {
+        id: true,
+        telegramId: true,
+        username: true,
+      },
+    })
+
+    return {
+      id: user.id,
+      telegramId: user.telegramId,
+      username: user.username ?? undefined,
+    }
+  }
+
   static async handleStartCommand(
     telegramId: string, 
     username: string | undefined

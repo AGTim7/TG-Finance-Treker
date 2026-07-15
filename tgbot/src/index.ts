@@ -1,4 +1,11 @@
-import bot from './bot/index.js';
+import app from './app'
+import bot from './bot/index'
 
-bot.start();
-console.log('Bot started');
+const port = Number(process.env.API_PORT ?? 3000)
+
+app.listen(port, () => {
+  console.log(`API started on port ${port}`)
+})
+
+bot.start()
+console.log('Bot started')
