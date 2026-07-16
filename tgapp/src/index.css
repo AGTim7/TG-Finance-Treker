@@ -201,6 +201,17 @@ body{
   }
 }
 
+@keyframes summary-fill {
+  from {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0.65;
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+  }
+}
+
 .animate-page-enter {
   animation: page-enter 360ms ease-out both;
 }
@@ -217,11 +228,16 @@ body{
   animation: bar-grow 650ms ease-out both;
 }
 
+.animate-summary-fill {
+  animation: summary-fill 760ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-page-enter,
   .animate-list-in,
   .animate-chart-enter,
-  .animate-bar-grow {
+  .animate-bar-grow,
+  .animate-summary-fill {
     animation: none;
     opacity: 1;
     transform: none;

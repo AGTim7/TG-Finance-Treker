@@ -1,13 +1,14 @@
 
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { format, isToday, isYesterday } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { ArrowDownLeft, ArrowUpRight, RefreshCw } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
+import { getAnalytics } from '@/api/analytics'
 import { getApiErrorMessage, TelegramAuthorizationError } from '@/api/client'
 import { getTransactions } from '@/api/transactions'
-import type { Transaction, TransactionType } from '@/api/types'
+import type { AnalyticsCategory, Transaction, TransactionType } from '@/api/types'
 import PeriodSelect from '@/components/PeriodSelect'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -49,16 +50,23 @@ function HistorySummary({
   filter,
   periodLabel,
   isLoading,
+  categories,
+  categoryTotal,
 }: {
   income: number
   expense: number
   filter: HistoryFilter
   periodLabel: string
   isLoading: boolean
+  categories: AnalyticsCategory[]
+  categoryTotal?: number
 }) {
   const turnover = income + expense
   const incomePercentage = turnover > 0 ? (income / turnover) * 100 : 0
-  const selectedAmount = filter === 'INCOME' ? income : filter === 'EXPENSE' ? expense : turnover
+  const isCategorySummary = filter !== 'ALL'
+  const selectedAmount = isCategorySummary
+    ? categoryTotal ?? (filter === 'INCOME' ? income : expense)
+    : turnover
   const title = filter === 'INCOME'
     ? `Доходы за ${periodLabel}`
     : filter === 'EXPENSE'
@@ -76,37 +84,63 @@ function HistorySummary({
         </p>
       )}
 
-      <div className="mt-5 flex h-2.5 overflow-hidden rounded-full bg-tg-secondary-bg">
+      <div
+        className="mt-5 h-2.5 overflow-hidden rounded-full bg-tg-secondary-bg"
+        aria-label={isCategorySummary ? 'Распределение по категориям' : 'Соотношение доходов и расходов'}
+      >
         <div
-          className="h-full bg-emerald-500 transition-[width] duration-700 ease-out"
-          style={{ width: `${incomePercentage}%` }}
-        />
-        <div
-          className="h-full bg-rose-500 transition-[width] duration-700 ease-out"
-          style={{ width: `${turnover > 0 ? 100 - incomePercentage : 0}%` }}
-        />
+          key={`${filter}-${periodLabel}`}
+          className="animate-summary-fill flex h-full w-full overflow-hidden rounded-full"
+        >
+          {isCategorySummary ? (
+            categories.map((item) => (
+              <div
+                key={item.category.id}
+                className="h-full shrink-0"
+                title={`${item.category.name}: ${item.percentage}%`}
+                style={{
+                  width: `${item.percentage}%`,
+                  backgroundColor: item.category.color,
+                }}
+              />
+            ))
+          ) : (
+            <>
+              <div
+                className="h-full bg-emerald-500"
+                style={{ width: `${incomePercentage}%` }}
+              />
+              <div
+                className="h-full bg-rose-500"
+                style={{ width: `${turnover > 0 ? 100 - incomePercentage : 0}%` }}
+              />
+            </>
+          )}
+        </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-            <ArrowDownLeft className="size-4" />
-          </span>
-          <div className="min-w-0">
-            <p className="text-[11px] text-tg-hint">Доходы</p>
-            <p className="truncate text-sm font-bold tabular-nums">{formatMoney(income)} ₽</p>
+      {!isCategorySummary && (
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <ArrowDownLeft className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[11px] text-tg-hint">Доходы</p>
+              <p className="truncate text-sm font-bold tabular-nums">{formatMoney(income)} ₽</p>
+            </div>
+          </div>
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400">
+              <ArrowUpRight className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[11px] text-tg-hint">Расходы</p>
+              <p className="truncate text-sm font-bold tabular-nums">{formatMoney(expense)} ₽</p>
+            </div>
           </div>
         </div>
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400">
-            <ArrowUpRight className="size-4" />
-          </span>
-          <div className="min-w-0">
-            <p className="text-[11px] text-tg-hint">Расходы</p>
-            <p className="truncate text-sm font-bold tabular-nums">{formatMoney(expense)} ₽</p>
-          </div>
-        </div>
-      </div>
+      )}
     </section>
   )
 }
@@ -148,6 +182,7 @@ export default function HistoryPage() {
   const [filter, setFilter] = useState<HistoryFilter>('ALL')
   const [period, setPeriod] = useState<PeriodKey>('current-month')
   const range = useMemo(() => getPeriodRange(period), [period])
+  const selectedType: TransactionType = filter === 'INCOME' ? 'INCOME' : 'EXPENSE'
 
   const transactionsQuery = useInfiniteQuery({
     queryKey: ['transactions', filter, period],
@@ -160,6 +195,19 @@ export default function HistoryPage() {
       to: range.to,
     }),
     getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.page + 1 : undefined,
+    retry: (failureCount, error) => (
+      !(error instanceof TelegramAuthorizationError) && failureCount < 1
+    ),
+  })
+
+  const categorySummaryQuery = useQuery({
+    queryKey: ['analytics', selectedType, period],
+    queryFn: () => getAnalytics({
+      type: selectedType,
+      from: range.from,
+      to: range.to,
+    }),
+    enabled: filter !== 'ALL',
     retry: (failureCount, error) => (
       !(error instanceof TelegramAuthorizationError) && failureCount < 1
     ),
@@ -191,7 +239,9 @@ export default function HistoryPage() {
         expense={Number(summary?.expense ?? 0)}
         filter={filter}
         periodLabel={range.label}
-        isLoading={transactionsQuery.isLoading}
+        isLoading={transactionsQuery.isLoading || (filter !== 'ALL' && categorySummaryQuery.isLoading)}
+        categories={categorySummaryQuery.data?.categories ?? []}
+        categoryTotal={filter === 'ALL' ? undefined : Number(categorySummaryQuery.data?.total ?? 0)}
       />
 
       <div className="sticky top-0 z-20 -mx-4 mt-3 bg-tg-bg/95 px-4 py-2 backdrop-blur-md">
@@ -220,16 +270,19 @@ export default function HistoryPage() {
         </div>
       </div>
 
-      {transactionsQuery.isError && (
+      {(transactionsQuery.isError || (filter !== 'ALL' && categorySummaryQuery.isError)) && (
         <div role="alert" className="mt-4 flex items-center justify-between gap-3 rounded-lg bg-tg-destructive-text/8 px-3 py-2.5 text-sm text-tg-destructive-text">
-          <span>{getApiErrorMessage(transactionsQuery.error)}</span>
+          <span>{getApiErrorMessage(transactionsQuery.error ?? categorySummaryQuery.error)}</span>
           <Button
             type="button"
             variant="ghost"
             size="icon-sm"
             title="Повторить загрузку"
             aria-label="Повторить загрузку"
-            onClick={() => void transactionsQuery.refetch()}
+            onClick={() => {
+              void transactionsQuery.refetch()
+              if (filter !== 'ALL') void categorySummaryQuery.refetch()
+            }}
           >
             <RefreshCw />
           </Button>
