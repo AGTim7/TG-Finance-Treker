@@ -2,7 +2,12 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
 import { ApiError } from '../errors/apiError'
-import { parseCreateTransactionBody, parsePageValue } from './transactions.validation'
+import {
+  parseCreateTransactionBody,
+  parseDateRange,
+  parsePageValue,
+  parseTransactionType,
+} from './transactions.validation'
 
 const CATEGORY_ID = '6ba7b810-9dad-41d1-80b4-00c04fd430c8'
 
@@ -57,5 +62,31 @@ describe('pagination validation', () => {
 
   it('rejects values above the configured maximum', () => {
     assert.throws(() => parsePageValue('51', 'limit', 20, 50), /not greater than 50/)
+  })
+})
+
+describe('transaction filters validation', () => {
+  it('accepts valid transaction types and empty filters', () => {
+    assert.equal(parseTransactionType(undefined), undefined)
+    assert.equal(parseTransactionType('INCOME'), 'INCOME')
+    assert.equal(parseTransactionType('EXPENSE'), 'EXPENSE')
+  })
+
+  it('rejects an unknown transaction type', () => {
+    assert.throws(() => parseTransactionType('ALL'), /INCOME or EXPENSE/)
+  })
+
+  it('parses an optional ISO date range', () => {
+    const result = parseDateRange('2026-07-01T00:00:00.000Z', '2026-08-01T00:00:00.000Z')
+    assert.equal(result.from?.toISOString(), '2026-07-01T00:00:00.000Z')
+    assert.equal(result.to?.toISOString(), '2026-08-01T00:00:00.000Z')
+  })
+
+  it('rejects invalid and reversed date ranges', () => {
+    assert.throws(() => parseDateRange('not-a-date', undefined), /valid ISO date/)
+    assert.throws(
+      () => parseDateRange('2026-08-01T00:00:00.000Z', '2026-07-01T00:00:00.000Z'),
+      /earlier than/,
+    )
   })
 })

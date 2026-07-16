@@ -7,6 +7,7 @@ import { webhookCallback } from 'grammy'
 import categoriesRoutes from './api/routes/categories.routes'
 import dashboardRoutes from './api/routes/dashboard.routes'
 import transactionsRoutes from './api/routes/transactions.routes'
+import analyticsRoutes from './api/routes/analytics.routes'
 import { ApiError } from './api/errors/apiError'
 import { errorHandler } from './api/middleware/errorHandler.middleware'
 import { notFoundHandler } from './api/middleware/notFound.middleware'
@@ -68,6 +69,7 @@ if (env.TELEGRAM_UPDATE_MODE === 'webhook') {
 app.use('/api/categories', telegramAuthMiddleware, categoriesRoutes)
 app.use('/api/dashboard', telegramAuthMiddleware, dashboardRoutes)
 app.use('/api/transactions', telegramAuthMiddleware, transactionsRoutes)
+app.use('/api/analytics', telegramAuthMiddleware, analyticsRoutes)
 
 app.use(notFoundHandler)
 app.use(errorHandler)

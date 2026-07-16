@@ -3,7 +3,9 @@ import { Router } from 'express'
 import { ApiError } from '../errors/apiError'
 import {
   parseCreateTransactionBody,
+  parseDateRange,
   parsePageValue,
+  parseTransactionType,
 } from '../validation/transactions.validation'
 import { TransactionService, TransactionServiceError } from '../../services/transactions.service'
 
@@ -27,7 +29,14 @@ router.get('/', async (req, res, next) => {
   try {
     const page = parsePageValue(req.query.page, 'page', 1, 100_000)
     const limit = parsePageValue(req.query.limit, 'limit', 20, 50)
-    const result = await TransactionService.getPageByUserId(req.user!.id, page, limit)
+    const type = parseTransactionType(req.query.type)
+    const { from, to } = parseDateRange(req.query.from, req.query.to)
+    const result = await TransactionService.getPageByUserId(
+      req.user!.id,
+      page,
+      limit,
+      { type, from, to },
+    )
 
     return res.json(result)
   } catch (error) {

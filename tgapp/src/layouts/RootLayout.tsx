@@ -14,14 +14,14 @@ export default function RootLayout() {
   const isActive = (path: string) => location.pathname === path
 
   return (
-    <div className="bg-tg-bg max-w-110 min-h-screen mx-auto flex flex-col relative">
+    <div className="relative mx-auto flex min-h-screen max-w-110 flex-col bg-tg-bg text-tg-text">
       
       <main className="flex-1 w-full">
         <Outlet />
       </main>
 
 
-      <nav className="fixed bottom-0 left-0 right-0 h-18 pb-safe border-t border-t-tg-hint/10 bg-tg-secondary-bg flex justify-around items-center z-50 px-2 shadow-sm">
+      <nav className="fixed bottom-0 left-1/2 z-50 flex h-18 w-full max-w-110 -translate-x-1/2 items-center justify-around border-t border-t-tg-hint/10 bg-tg-secondary-bg px-2 pb-safe shadow-sm">
         <button 
           onClick={() => handleNavigation("/")}
           className={`flex flex-col items-center gap-1 flex-1 py-1 transition-all ${isActive("/") ? "text-emerald-500 font-semibold" : "text-tg-hint"}`}

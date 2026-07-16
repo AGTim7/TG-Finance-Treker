@@ -64,24 +64,35 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --color-tg-bg: var(--tg-theme-bg-color, #ffffff);
+  --color-tg-text: var(--tg-theme-text-color, #15171a);
+  --color-tg-hint: var(--tg-theme-hint-color, #73777f);
+  --color-tg-link: var(--tg-theme-link-color, #2481cc);
+  --color-tg-button: var(--tg-theme-button-color, #2481cc);
+  --color-tg-button-text: var(--tg-theme-button-text-color, #ffffff);
+  --color-tg-secondary-bg: var(--tg-theme-secondary-bg-color, #f2f3f5);
+  --color-tg-section-bg: var(--tg-theme-section-bg-color, #ffffff);
+  --color-tg-section-header-text: var(--tg-theme-section-header-text-color, #666b73);
+  --color-tg-subtitle-text: var(--tg-theme-subtitle-text-color, #858a92);
+  --color-tg-destructive-text: var(--tg-theme-destructive-text-color, #e53935);
+  --background: var(--color-tg-bg);
+  --foreground: var(--color-tg-text);
+  --card: var(--color-tg-section-bg);
+  --card-foreground: var(--color-tg-text);
+  --popover: var(--color-tg-section-bg);
+  --popover-foreground: var(--color-tg-text);
+  --primary: var(--color-tg-button);
+  --primary-foreground: var(--color-tg-button-text);
+  --secondary: var(--color-tg-secondary-bg);
+  --secondary-foreground: var(--color-tg-text);
+  --muted: var(--color-tg-secondary-bg);
+  --muted-foreground: var(--color-tg-hint);
+  --accent: var(--color-tg-secondary-bg);
+  --accent-foreground: var(--color-tg-text);
+  --destructive: var(--color-tg-destructive-text);
+  --border: color-mix(in srgb, var(--color-tg-hint) 18%, transparent);
+  --input: color-mix(in srgb, var(--color-tg-hint) 24%, transparent);
+  --ring: var(--color-tg-button);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -99,24 +110,35 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --color-tg-bg: var(--tg-theme-bg-color, #0f1115);
+  --color-tg-text: var(--tg-theme-text-color, #f3f5f7);
+  --color-tg-hint: var(--tg-theme-hint-color, #8b919a);
+  --color-tg-link: var(--tg-theme-link-color, #5aa7e8);
+  --color-tg-button: var(--tg-theme-button-color, #3a95d9);
+  --color-tg-button-text: var(--tg-theme-button-text-color, #ffffff);
+  --color-tg-secondary-bg: var(--tg-theme-secondary-bg-color, #20242b);
+  --color-tg-section-bg: var(--tg-theme-section-bg-color, #171a20);
+  --color-tg-section-header-text: var(--tg-theme-section-header-text-color, #aeb4bd);
+  --color-tg-subtitle-text: var(--tg-theme-subtitle-text-color, #969ca5);
+  --color-tg-destructive-text: var(--tg-theme-destructive-text-color, #ff6b6b);
+  --background: var(--color-tg-bg);
+  --foreground: var(--color-tg-text);
+  --card: var(--color-tg-section-bg);
+  --card-foreground: var(--color-tg-text);
+  --popover: var(--color-tg-section-bg);
+  --popover-foreground: var(--color-tg-text);
+  --primary: var(--color-tg-button);
+  --primary-foreground: var(--color-tg-button-text);
+  --secondary: var(--color-tg-secondary-bg);
+  --secondary-foreground: var(--color-tg-text);
+  --muted: var(--color-tg-secondary-bg);
+  --muted-foreground: var(--color-tg-hint);
+  --accent: color-mix(in srgb, var(--color-tg-secondary-bg) 82%, var(--color-tg-text));
+  --accent-foreground: var(--color-tg-text);
+  --destructive: var(--color-tg-destructive-text);
+  --border: color-mix(in srgb, var(--color-tg-hint) 22%, transparent);
+  --input: color-mix(in srgb, var(--color-tg-hint) 28%, transparent);
+  --ring: var(--color-tg-button);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -134,6 +156,76 @@
 
 body{
   background-color: var(--color-tg-bg);
+  color: var(--color-tg-text);
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes list-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes chart-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.animate-page-enter {
+  animation: page-enter 360ms ease-out both;
+}
+
+.animate-list-in {
+  animation: list-in 380ms ease-out both;
+}
+
+.animate-chart-enter {
+  animation: chart-enter 420ms ease-out both;
+}
+
+.animate-bar-grow {
+  animation: bar-grow 650ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-page-enter,
+  .animate-list-in,
+  .animate-chart-enter,
+  .animate-bar-grow {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
 
 @layer base {

@@ -54,22 +54,49 @@ export class TransactionService {
     })
   }
 
-  static async getPageByUserId(userId: string, page: number, limit: number) {
+  static async getPageByUserId(
+    userId: string,
+    page: number,
+    limit: number,
+    filters: { type?: TransactionType; from?: Date; to?: Date } = {},
+  ) {
     const skip = (page - 1) * limit
 
     if (!Number.isSafeInteger(skip)) {
       throw new TransactionServiceError('Requested page is too large', 400)
     }
 
-    const [items, total] = await prisma.$transaction([
+    const periodWhere: Prisma.TransactionWhereInput = {
+      userId,
+      ...((filters.from || filters.to) && {
+        date: {
+          ...(filters.from && { gte: filters.from }),
+          ...(filters.to && { lt: filters.to }),
+        },
+      }),
+    }
+    const itemsWhere: Prisma.TransactionWhereInput = {
+      ...periodWhere,
+      ...(filters.type && { category: { type: filters.type } }),
+    }
+
+    const [items, total, income, expense] = await prisma.$transaction([
       prisma.transaction.findMany({
-        where: { userId },
+        where: itemsWhere,
         include: { category: true },
         orderBy: [{ date: 'desc' }, { id: 'desc' }],
         skip,
         take: limit,
       }),
-      prisma.transaction.count({ where: { userId } }),
+      prisma.transaction.count({ where: itemsWhere }),
+      prisma.transaction.aggregate({
+        where: { ...periodWhere, category: { type: 'INCOME' } },
+        _sum: { amount: true },
+      }),
+      prisma.transaction.aggregate({
+        where: { ...periodWhere, category: { type: 'EXPENSE' } },
+        _sum: { amount: true },
+      }),
     ])
 
     return {
@@ -78,6 +105,10 @@ export class TransactionService {
       limit,
       total,
       hasMore: page * limit < total,
+      summary: {
+        income: (income._sum.amount ?? new Prisma.Decimal(0)).toFixed(2),
+        expense: (expense._sum.amount ?? new Prisma.Decimal(0)).toFixed(2),
+      },
     }
   }
 }

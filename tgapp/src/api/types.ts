@@ -48,3 +48,52 @@ export type CreateTransactionInput = {
 export type CreateTransactionResponse = {
   item: Transaction
 }
+
+export type TransactionsPage = {
+  items: Transaction[]
+  page: number
+  limit: number
+  total: number
+  hasMore: boolean
+  summary: {
+    income: string
+    expense: string
+  }
+}
+
+export type AnalyticsCategory = {
+  category: Category
+  amount: string
+  transactionCount: number
+  percentage: number
+}
+
+export type AnalyticsData = {
+  type: TransactionType
+  total: string
+  transactionCount: number
+  categories: AnalyticsCategory[]
+  period: {
+    from: string | null
+    to: string | null
+  }
+}
+
+export type MonthlyAnalytics = {
+  month: string
+  income: string
+  expense: string
+  balance: string
+}
+
+export type AnalyticsOverviewData = {
+  months: MonthlyAnalytics[]
+  totalIncome: string
+  totalExpense: string
+  balance: string
+  period: {
+    from: string
+    to: string
+    currentMonth: string
+  }
+}
