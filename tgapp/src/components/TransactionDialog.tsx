@@ -13,7 +13,7 @@ import type { Transaction, TransactionType } from '@/api/types'
 import { getWallets } from '@/api/wallets'
 import { Button } from '@/components/ui/button'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer'
-import { FieldError, FieldLabel } from '@/components/ui/field'
+import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
@@ -218,21 +218,48 @@ export default function TransactionDialog({
               </div>
             )}
 
-            <div className="text-center">
-              <span className="text-[11px] font-semibold uppercase text-tg-subtitle-text">Сумма</span>
-              <div className="mt-1 flex h-16 items-center justify-center rounded-xl border border-tg-hint/12 bg-tg-secondary-bg/55 px-3">
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="0"
-                  {...register('amount', { onChange: (event) => { event.target.value = event.target.value.replace(/,/g, '.').replace(/[^0-9.]/g, '').slice(0, 13) } })}
-                  className={`min-w-0 max-w-52 bg-transparent text-right text-3xl font-black tabular-nums outline-none placeholder:opacity-30 ${isIncome ? 'text-emerald-500' : 'text-tg-destructive-text'}`}
-                  autoFocus={!isEditing}
-                />
-                <span className={`ml-2 text-2xl font-bold ${amount ? 'opacity-100' : 'opacity-30'}`}>₽</span>
+            <Field className="flex flex-col items-center justify-center">
+              <span className="mb-1 select-none text-[11px] font-semibold uppercase text-tg-subtitle-text">
+                Сумма транзакции
+              </span>
+
+              <div className="relative flex w-full items-center justify-center rounded-2xl border py-3 text-3xl font-black tabular-nums transition-all">
+                {amount && (
+                  <span className="ml-1.5 select-none text-3xl font-black text-tg-text/30 animate-in fade-in zoom-in-95 duration-100">
+                    &nbsp;₽
+                  </span>
+                )}
+                <div className="inline-grid grid-cols-1 items-center justify-items-center">
+                  <span className="pointer-events-none invisible col-start-1 row-start-1 whitespace-pre p-0 text-center text-3xl font-black">
+                    {amount || '0'}
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="0"
+                    {...register('amount', {
+                      onChange: (event) => {
+                        let value = event.target.value.replace(/,/g, '.').replace(/[^0-9.]/g, '')
+                        const parts = value.split('.')
+                        if (parts.length > 2) value = `${parts[0]}.${parts.slice(1).join('')}`
+
+                        const refinedParts = value.split('.')
+                        refinedParts[0] = refinedParts[0].slice(0, 10)
+                        if (refinedParts[1]) refinedParts[1] = refinedParts[1].slice(0, 2)
+                        event.target.value = refinedParts.join('.')
+                      },
+                    })}
+                    className={`col-start-1 row-start-1 w-full border-none bg-transparent p-0 text-center font-black outline-none focus:ring-0 ${
+                      isIncome
+                        ? 'text-emerald-500 placeholder:text-emerald-500/30'
+                        : 'text-tg-destructive-text placeholder:text-tg-destructive-text/30'
+                    }`}
+                    autoFocus={!isEditing}
+                  />
+                </div>
               </div>
               {errors.amount && <FieldError className="mt-1">{errors.amount.message}</FieldError>}
-            </div>
+            </Field>
 
             <div>
               <FieldLabel className="mb-1.5 text-xs font-semibold text-tg-subtitle-text">Кошелёк</FieldLabel>
