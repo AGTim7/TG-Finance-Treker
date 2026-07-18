@@ -1,24 +1,23 @@
 import { Prisma } from '../../generated/prisma/client'
 
 import { prisma } from '../prisma/client'
+import { WalletService } from './wallets.service'
 
 export class DashboardService {
-  static async getForUser(userId: string, now = new Date()) {
+  static async getForUser(userId: string, walletId?: string, now = new Date()) {
     const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
+    const walletData = await WalletService.getForUser(userId)
+    const selectedWallet = walletId
+      ? walletData.items.find((wallet) => wallet.id === walletId)
+      : undefined
+    if (walletId && !selectedWallet) await WalletService.requireActiveForUser(userId, walletId)
+    const walletWhere = walletId ? { walletId } : {}
 
-    const [income, expense, recentTransactions, topExpenseGroups, monthExpense] =
+    const [recentTransactions, topExpenseGroups, monthExpense] =
       await prisma.$transaction([
-        prisma.transaction.aggregate({
-          where: { userId, category: { type: 'INCOME' } },
-          _sum: { amount: true },
-        }),
-        prisma.transaction.aggregate({
-          where: { userId, category: { type: 'EXPENSE' } },
-          _sum: { amount: true },
-        }),
         prisma.transaction.findMany({
-          where: { userId },
-          include: { category: true },
+          where: { userId, ...walletWhere },
+          include: { category: true, wallet: true },
           orderBy: [{ date: 'desc' }, { id: 'desc' }],
           take: 4,
         }),
@@ -26,8 +25,9 @@ export class DashboardService {
           by: ['categoryId'],
           where: {
             userId,
+            ...walletWhere,
             date: { gte: monthStart },
-            category: { type: 'EXPENSE' },
+            type: 'EXPENSE',
           },
           _sum: { amount: true },
           orderBy: { _sum: { amount: 'desc' } },
@@ -36,8 +36,9 @@ export class DashboardService {
         prisma.transaction.aggregate({
           where: {
             userId,
+            ...walletWhere,
             date: { gte: monthStart },
-            category: { type: 'EXPENSE' },
+            type: 'EXPENSE',
           },
           _sum: { amount: true },
         }),
@@ -58,8 +59,6 @@ export class DashboardService {
       : []
     const categoriesById = new Map(categories.map((category) => [category.id, category]))
 
-    const incomeTotal = income._sum.amount ?? new Prisma.Decimal(0)
-    const expenseTotal = expense._sum.amount ?? new Prisma.Decimal(0)
     const monthExpenseTotal = monthExpense._sum.amount ?? new Prisma.Decimal(0)
 
     const topExpenseCategories = topExpenseGroups.flatMap((group) => {
@@ -79,7 +78,9 @@ export class DashboardService {
     })
 
     return {
-      balance: incomeTotal.minus(expenseTotal).toFixed(2),
+      balance: selectedWallet?.balance ?? walletData.totalBalance,
+      totalBalance: walletData.totalBalance,
+      wallets: walletData.items,
       recentTransactions,
       topExpenseCategories,
       period: {

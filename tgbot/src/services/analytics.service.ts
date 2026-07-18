@@ -2,6 +2,7 @@ import { Prisma } from '../../generated/prisma/client'
 import type { TransactionType } from '../../generated/prisma/enums'
 
 import { prisma } from '../prisma/client'
+import { WalletService } from './wallets.service'
 
 type MonthlyAnalyticsRow = {
   month: Date
@@ -10,21 +11,24 @@ type MonthlyAnalyticsRow = {
 }
 
 export class AnalyticsService {
-  static async getOverviewForUser(userId: string, now = new Date()) {
+  static async getOverviewForUser(userId: string, now = new Date(), walletId?: string) {
     const currentMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
     const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1))
     const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1))
 
+    if (walletId) await WalletService.requireActiveForUser(userId, walletId)
+    const walletFilter = walletId ? Prisma.sql`AND t.wallet_id = ${walletId}::uuid` : Prisma.empty
+
     const rows = await prisma.$queryRaw<MonthlyAnalyticsRow[]>(Prisma.sql`
       SELECT
         date_trunc('month', t.date) AS month,
-        c.type::text AS type,
+        t.type::text AS type,
         SUM(t.amount) AS amount
       FROM "transaction" AS t
-      INNER JOIN "category" AS c ON c.id = t.category_id
       WHERE t.user_id = ${userId}::uuid
         AND t.date >= ${from}
         AND t.date < ${to}
+        ${walletFilter}
       GROUP BY 1, 2
       ORDER BY 1 ASC
     `)
@@ -78,11 +82,13 @@ export class AnalyticsService {
 
   static async getForUser(
     userId: string,
-    filters: { type: TransactionType; from?: Date; to?: Date },
+    filters: { type: TransactionType; walletId?: string; from?: Date; to?: Date },
   ) {
+    if (filters.walletId) await WalletService.requireActiveForUser(userId, filters.walletId)
     const where: Prisma.TransactionWhereInput = {
       userId,
-      category: { type: filters.type },
+      type: filters.type,
+      ...(filters.walletId && { walletId: filters.walletId }),
       ...((filters.from || filters.to) && {
         date: {
           ...(filters.from && { gte: filters.from }),

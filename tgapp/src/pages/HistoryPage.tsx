@@ -8,8 +8,11 @@ import { useMemo, useState } from 'react'
 import { getAnalytics } from '@/api/analytics'
 import { getApiErrorMessage, TelegramAuthorizationError } from '@/api/client'
 import { getTransactions } from '@/api/transactions'
+import { getWallets } from '@/api/wallets'
 import type { AnalyticsCategory, Transaction, TransactionType } from '@/api/types'
 import PeriodSelect from '@/components/PeriodSelect'
+import TransactionDialog from '@/components/TransactionDialog'
+import WalletSelector from '@/components/WalletSelector'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatMoney } from '@/lib/format'
@@ -146,51 +149,59 @@ function HistorySummary({
 }
 
 function TransactionRow({ transaction, index }: { transaction: Transaction; index: number }) {
-  const isIncome = transaction.category.type === 'INCOME'
+  const isIncome = transaction.type === 'INCOME'
 
   return (
-    <div
-      className="animate-list-in flex items-center justify-between gap-3 py-3 opacity-0"
-      style={{ animationDelay: `${Math.min(index * 35, 350)}ms` }}
-    >
-      <div className="flex min-w-0 items-center gap-3">
-        <div
-          className="flex size-11 shrink-0 items-center justify-center rounded-xl text-[22px] shadow-sm shadow-black/5 transition-transform duration-200 active:scale-90"
-          style={{ backgroundColor: `${transaction.category.color}1F` }}
+    <TransactionDialog
+      transaction={transaction}
+      trigger={(
+        <button
+          type="button"
+          className="animate-list-in flex w-full items-center justify-between gap-3 py-3 text-left opacity-0"
+          style={{ animationDelay: `${Math.min(index * 35, 350)}ms` }}
         >
-          {transaction.category.emoji}
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-[15px] font-semibold">
-            {transaction.description || transaction.category.name}
+          <div className="flex min-w-0 items-center gap-3">
+            <div
+              className="flex size-11 shrink-0 items-center justify-center rounded-xl text-[22px] shadow-sm shadow-black/5 transition-transform duration-200 active:scale-90"
+              style={{ backgroundColor: `${transaction.category.color}1F` }}
+            >
+              {transaction.category.emoji}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-[15px] font-semibold">
+                {transaction.description || transaction.category.name}
+              </p>
+              <p className="truncate text-xs text-tg-subtitle-text">
+                {transaction.category.name} · {transaction.wallet.name} · {format(new Date(transaction.date), 'HH:mm')}
+              </p>
+            </div>
+          </div>
+          <p className={`shrink-0 text-sm font-bold tabular-nums ${
+            isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-tg-text'
+          }`}>
+            {isIncome ? '+' : '−'}{formatMoney(transaction.amount)} ₽
           </p>
-          <p className="truncate text-xs text-tg-subtitle-text">
-            {transaction.category.name} · {format(new Date(transaction.date), 'HH:mm')}
-          </p>
-        </div>
-      </div>
-      <p className={`shrink-0 text-sm font-bold tabular-nums ${
-        isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-tg-text'
-      }`}>
-        {isIncome ? '+' : '−'}{formatMoney(transaction.amount)} ₽
-      </p>
-    </div>
+        </button>
+      )}
+    />
   )
 }
 
 export default function HistoryPage() {
   const [filter, setFilter] = useState<HistoryFilter>('ALL')
   const [period, setPeriod] = useState<PeriodKey>('current-month')
+  const [walletId, setWalletId] = useState<string>()
   const range = useMemo(() => getPeriodRange(period), [period])
   const selectedType: TransactionType = filter === 'INCOME' ? 'INCOME' : 'EXPENSE'
 
   const transactionsQuery = useInfiniteQuery({
-    queryKey: ['transactions', filter, period],
+    queryKey: ['transactions', filter, period, walletId],
     initialPageParam: 1,
     queryFn: ({ pageParam }) => getTransactions({
       page: pageParam,
       limit: 20,
       type: filter === 'ALL' ? undefined : filter,
+      walletId,
       from: range.from,
       to: range.to,
     }),
@@ -201,9 +212,10 @@ export default function HistoryPage() {
   })
 
   const categorySummaryQuery = useQuery({
-    queryKey: ['analytics', selectedType, period],
+    queryKey: ['analytics', selectedType, period, walletId],
     queryFn: () => getAnalytics({
       type: selectedType,
+      walletId,
       from: range.from,
       to: range.to,
     }),
@@ -211,6 +223,12 @@ export default function HistoryPage() {
     retry: (failureCount, error) => (
       !(error instanceof TelegramAuthorizationError) && failureCount < 1
     ),
+  })
+
+  const walletsQuery = useQuery({
+    queryKey: ['wallets'],
+    queryFn: getWallets,
+    staleTime: 60_000,
   })
 
   const transactions = useMemo(
@@ -233,6 +251,14 @@ export default function HistoryPage() {
       <header className="animate-page-enter mb-4">
         <h1 className="text-2xl font-bold">История</h1>
       </header>
+
+      <div className="mb-3">
+        <WalletSelector
+          wallets={walletsQuery.data?.items ?? []}
+          value={walletId}
+          onChange={setWalletId}
+        />
+      </div>
 
       <HistorySummary
         income={Number(summary?.income ?? 0)}

@@ -3,6 +3,7 @@ import type { AnalyticsData, AnalyticsOverviewData, TransactionType } from './ty
 
 export async function getAnalytics(params: {
   type: TransactionType
+  walletId?: string
   from?: string
   to?: string
 }) {
@@ -10,7 +11,7 @@ export async function getAnalytics(params: {
   return response.data
 }
 
-export async function getAnalyticsOverview() {
-  const response = await api.get<AnalyticsOverviewData>('/analytics/overview')
+export async function getAnalyticsOverview(walletId?: string) {
+  const response = await api.get<AnalyticsOverviewData>('/analytics/overview', { params: { walletId } })
   return response.data
 }

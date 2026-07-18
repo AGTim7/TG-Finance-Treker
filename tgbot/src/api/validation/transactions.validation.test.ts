@@ -7,19 +7,28 @@ import {
   parseDateRange,
   parsePageValue,
   parseTransactionType,
+  parseUpdateTransactionBody,
 } from './transactions.validation'
+import {
+  parseCreateCategoryBody,
+  parseCreateWalletBody,
+  parseUpdateCategoryBody,
+} from './resources.validation'
 
 const CATEGORY_ID = '6ba7b810-9dad-41d1-80b4-00c04fd430c8'
+const WALLET_ID = '8d8f4c31-48ef-4ab8-b54f-ad6b97f201b8'
 
 describe('transaction request validation', () => {
   it('normalizes a valid transaction body', () => {
     const result = parseCreateTransactionBody({
       categoryId: CATEGORY_ID,
+      walletId: WALLET_ID,
       amount: '1500.50',
       description: '  Продукты  ',
     })
 
     assert.equal(result.amount.toFixed(2), '1500.50')
+    assert.equal(result.walletId, WALLET_ID)
     assert.equal(result.description, 'Продукты')
   })
 
@@ -87,6 +96,48 @@ describe('transaction filters validation', () => {
     assert.throws(
       () => parseDateRange('2026-08-01T00:00:00.000Z', '2026-07-01T00:00:00.000Z'),
       /earlier than/,
+    )
+  })
+
+  it('accepts partial edits and requires at least one editable field', () => {
+    const result = parseUpdateTransactionBody({
+      walletId: WALLET_ID,
+      description: null,
+      date: '2026-07-18T12:00:00.000Z',
+    })
+    assert.equal(result.walletId, WALLET_ID)
+    assert.equal(result.description, null)
+    assert.equal(result.date?.toISOString(), '2026-07-18T12:00:00.000Z')
+    assert.throws(() => parseUpdateTransactionBody({}), /editable field/)
+  })
+})
+
+describe('wallet and category validation', () => {
+  it('normalizes wallet input', () => {
+    const result = parseCreateWalletBody({
+      name: '  Мои   накопления ',
+      emoji: '🏦',
+      color: '#2481cc',
+      initialBalance: '1250,50',
+      isDefault: true,
+    })
+    assert.equal(result.name, 'Мои накопления')
+    assert.equal(result.color, '#2481CC')
+    assert.equal(result.initialBalance.toFixed(2), '1250.50')
+    assert.equal(result.isDefault, true)
+  })
+
+  it('validates custom category input and keeps its type immutable', () => {
+    const result = parseCreateCategoryBody({
+      name: 'Подписки',
+      type: 'EXPENSE',
+      emoji: '📱',
+      color: '#8B5CF6',
+    })
+    assert.equal(result.type, 'EXPENSE')
+    assert.throws(
+      () => parseUpdateCategoryBody({ type: 'INCOME' }),
+      /cannot be changed/,
     )
   })
 })

@@ -12,46 +12,82 @@ enum TransactionType {
   EXPENSE
 }
 
+enum WalletKind {
+  CASH
+  BANK
+  CUSTOM
+}
+
 model User {
   id         String   @id @default(uuid()) @db.Uuid
   telegramId String   @unique
   username   String?
   currency   String   @default("RUB")
   createdAt  DateTime @default(now()) @map("created_at")
-  
+
   transactions Transaction[]
   categories   Category[]
+  wallets      Wallet[]
 
   @@map("user")
 }
 
-
 model Category {
-  id        String          @id @default(uuid()) @db.Uuid
-  userId    String?         @map("user_id") @db.Uuid // null для глобальных категорий
-  name      String
-  type      TransactionType
-  color     String
-  emoji     String
+  id         String          @id @default(uuid()) @db.Uuid
+  userId     String?         @map("user_id") @db.Uuid
+  name       String
+  type       TransactionType
+  color      String
+  emoji      String
+  archivedAt DateTime?       @map("archived_at")
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime        @updatedAt @map("updated_at")
+
   user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
 
-  // Уникальность глобальных name + type обеспечивается partial index в миграции.
+  @@index([userId, type])
   @@map("category")
+}
+
+model Wallet {
+  id             String     @id @default(uuid()) @db.Uuid
+  userId         String     @map("user_id") @db.Uuid
+  name           String
+  kind           WalletKind @default(CUSTOM)
+  emoji          String
+  color          String
+  initialBalance Decimal    @default(0) @map("initial_balance") @db.Decimal(12, 2)
+  isDefault      Boolean    @default(false) @map("is_default")
+  archivedAt     DateTime?  @map("archived_at")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([userId, archivedAt])
+  @@map("wallet")
 }
 
 model Transaction {
   id          String          @id @default(uuid()) @db.Uuid
   userId      String          @map("user_id") @db.Uuid
   categoryId  String          @map("category_id") @db.Uuid
+  walletId    String          @map("wallet_id") @db.Uuid
+  type        TransactionType
   amount      Decimal         @db.Decimal(12, 2)
   description String?
   date        DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt @map("updated_at")
 
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   category Category @relation(fields: [categoryId], references: [id])
+  wallet   Wallet   @relation(fields: [walletId], references: [id], onDelete: Restrict)
 
   @@index([userId, date(sort: Desc)])
+  @@index([userId, walletId, date(sort: Desc)])
+  @@index([userId, type, date(sort: Desc)])
   @@map("transaction")
 }
 

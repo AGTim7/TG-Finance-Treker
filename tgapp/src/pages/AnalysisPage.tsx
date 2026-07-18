@@ -17,6 +17,7 @@ import {
 
 import { getAnalytics, getAnalyticsOverview } from '@/api/analytics'
 import { getApiErrorMessage, TelegramAuthorizationError } from '@/api/client'
+import { getWallets } from '@/api/wallets'
 import type {
   AnalyticsCategory,
   AnalyticsOverviewData,
@@ -24,6 +25,7 @@ import type {
 } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import WalletSelector from '@/components/WalletSelector'
 import { formatMoney } from '@/lib/format'
 import { getPeriodRange } from '@/lib/period'
 import { triggerHaptic } from '@/utils/triggerHaptic'
@@ -366,13 +368,15 @@ function OverviewAnalytics({ data, isLoading }: {
 
 export default function AnalysisPage() {
   const [mode, setMode] = useState<AnalysisMode>('EXPENSE')
+  const [walletId, setWalletId] = useState<string>()
   const currentMonth = useMemo(() => getPeriodRange('current-month'), [])
   const categoryType: TransactionType = mode === 'INCOME' ? 'INCOME' : 'EXPENSE'
 
   const categoryQuery = useQuery({
-    queryKey: ['analytics', categoryType, 'current-month'],
+    queryKey: ['analytics', categoryType, 'current-month', walletId],
     queryFn: () => getAnalytics({
       type: categoryType,
+      walletId,
       from: currentMonth.from,
       to: currentMonth.to,
     }),
@@ -383,12 +387,18 @@ export default function AnalysisPage() {
   })
 
   const overviewQuery = useQuery({
-    queryKey: ['analytics-overview'],
-    queryFn: getAnalyticsOverview,
+    queryKey: ['analytics-overview', walletId],
+    queryFn: () => getAnalyticsOverview(walletId),
     enabled: mode === 'OVERVIEW',
     retry: (failureCount, error) => (
       !(error instanceof TelegramAuthorizationError) && failureCount < 1
     ),
+  })
+
+  const walletsQuery = useQuery({
+    queryKey: ['wallets'],
+    queryFn: getWallets,
+    staleTime: 60_000,
   })
 
   return (
@@ -397,7 +407,15 @@ export default function AnalysisPage() {
         <h1 className="text-2xl font-bold">Аналитика</h1>
       </header>
 
-      <div className="sticky top-0 z-20 -mx-4 mt-3 bg-tg-bg/95 px-4 py-2 backdrop-blur-md">
+      <div className="mt-3">
+        <WalletSelector
+          wallets={walletsQuery.data?.items ?? []}
+          value={walletId}
+          onChange={setWalletId}
+        />
+      </div>
+
+      <div className="sticky top-0 z-20 -mx-4 mt-2 bg-tg-bg/95 px-4 py-2 backdrop-blur-md">
         <div className="grid grid-cols-[0.82fr_0.82fr_1.3fr] rounded-lg bg-tg-secondary-bg p-1">
           {modeOptions.map((option) => (
             <button

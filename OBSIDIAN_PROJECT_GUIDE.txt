@@ -1,6 +1,6 @@
 # FinanceTrackerBot: поддержка и эксплуатация
 
-Версия памятки: 16 июля 2026
+Версия памятки: 18 июля 2026
 
 Этот файл написан в Markdown, хотя имеет расширение TXT. После переноса в Obsidian его можно переименовать в `FinanceTrackerBot.md`.
 
@@ -90,11 +90,20 @@ Production использует webhook. Локальная разработка
 Endpoint с Telegram auth:
 
 - `GET /api/categories?type=INCOME|EXPENSE`
-- `GET /api/dashboard`
+- `POST /api/categories`
+- `PATCH /api/categories/:id`
+- `DELETE /api/categories/:id`
+- `GET /api/wallets`
+- `POST /api/wallets`
+- `PATCH /api/wallets/:id`
+- `DELETE /api/wallets/:id`
+- `GET /api/dashboard?walletId=...`
 - `POST /api/transactions`
-- `GET /api/transactions?page=1&limit=20&type=EXPENSE&from=...&to=...`
-- `GET /api/analytics?type=EXPENSE&from=...&to=...`
-- `GET /api/analytics/overview`
+- `PATCH /api/transactions/:id`
+- `DELETE /api/transactions/:id`
+- `GET /api/transactions?page=1&limit=20&type=EXPENSE&walletId=...&from=...&to=...`
+- `GET /api/analytics?type=EXPENSE&walletId=...&from=...&to=...`
+- `GET /api/analytics/overview?walletId=...`
 
 Пагинация начинается с page 1. Limit по умолчанию 20, максимум 50. Ответ содержит `items`, `page`, `limit`, `total`, `hasMore`.
 
@@ -104,6 +113,7 @@ Backend проверяет:
 
 - существование категории;
 - принадлежность категории пользователю или глобальный статус;
+- принадлежность кошелька пользователю и его активный статус;
 - корректный тип INCOME/EXPENSE;
 - сумму больше нуля и не больше `9999999999.99`;
 - не больше двух знаков после запятой;
@@ -111,7 +121,7 @@ Backend проверяет:
 
 ### Dashboard
 
-`GET /api/dashboard` возвращает общий баланс, четыре последние транзакции, четыре крупнейшие категории расходов текущего месяца и границы периода.
+`GET /api/dashboard` возвращает кошельки, общий или выбранный баланс, четыре последние транзакции, четыре крупнейшие категории расходов текущего месяца и границы периода. `walletId` является необязательным фильтром.
 
 ### Bot conversation
 
@@ -135,24 +145,24 @@ Backend проверяет:
 
 ### Главная страница
 
-Главная страница получает `/api/dashboard` и показывает баланс, последние операции и расходы по категориям. Реализованы loading, empty, error и retry состояния.
+Главная страница получает `/api/dashboard`, показывает общий или выбранный кошелёк, последние операции и расходы по категориям. Реализованы loading, empty, error и retry состояния.
 
 ### Создание транзакции
 
 1. Пользователь выбирает доход или расход.
-2. Загружаются категории выбранного типа.
+2. Загружаются категории выбранного типа и активные кошельки.
 3. React Hook Form и Zod проверяют форму.
 4. Выполняется `POST /api/transactions`.
-5. Dashboard и transactions queries инвалидируются.
+5. Dashboard, wallets, transactions и analytics queries инвалидируются.
 6. Экран получает свежие данные и вызывает Telegram haptic feedback.
 
 ### История и аналитика
 
-История поддерживает фильтры «Все / Расходы / Доходы», текущий месяц, прошлый месяц и все время. Следующие страницы подгружаются через API-пагинацию.
+История поддерживает фильтры «Все / Расходы / Доходы», кошелёк, текущий месяц, прошлый месяц и все время. Следующие страницы подгружаются через API-пагинацию. Нажатие на строку открывает редактирование или удаление операции.
 
-Аналитика имеет три режима. «Расходы» и «Доходы» показывают кольцевую диаграмму текущего месяца и список категорий с emoji, суммой, количеством операций и процентом. «Вся аналитика» показывает доходы, расходы и баланс за последние шесть месяцев.
+Аналитика имеет три режима и фильтр кошелька. «Расходы» и «Доходы» показывают кольцевую диаграмму текущего месяца и список категорий с emoji, суммой, количеством операций и процентом. «Вся аналитика» показывает доходы, расходы и баланс за последние шесть месяцев.
 
-Главная, история и аналитика готовы. Полезное и настройки пока заготовки.
+В настройках пользователь управляет кошельками и своими категориями. Глобальные категории доступны только для чтения. Полезное пока является заготовкой.
 
 ---
 
@@ -172,15 +182,25 @@ Backend проверяет:
 
 - UUID;
 - `userId=null` у глобальной категории;
-- name, type, color, emoji.
+- name, type, color, emoji;
+- `archivedAt`, `createdAt`, `updatedAt`.
+
+`wallet`:
+
+- UUID и владелец;
+- name, kind, emoji, color;
+- начальный остаток `Decimal(12,2)`;
+- признак основного кошелька;
+- даты создания, изменения и архивирования.
 
 `transaction`:
 
 - UUID;
-- пользователь и категория;
+- пользователь, кошелёк и категория;
+- сохраненный тип INCOME/EXPENSE;
 - `Decimal(12,2)`;
 - описание;
-- дата.
+- дата создания операции и дата последнего изменения.
 
 `bot_conversation`:
 
@@ -204,6 +224,8 @@ SELECT COUNT(*) AS users FROM "user";
 
 SELECT COUNT(*) AS transactions FROM "transaction";
 
+SELECT COUNT(*) AS wallets FROM "wallet";
+
 SELECT id, "telegramId", username, currency, "createdAt"
 FROM "user"
 ORDER BY "createdAt" DESC
@@ -215,17 +237,23 @@ SELECT
   t.description,
   t.date,
   c.name AS category,
-  c.type,
+  t.type,
+  w.name AS wallet,
   u."telegramId"
 FROM "transaction" t
-JOIN "category" c ON c.id = t."categoryId"
-JOIN "user" u ON u.id = t."userId"
+JOIN "category" c ON c.id = t.category_id
+JOIN "wallet" w ON w.id = t.wallet_id
+JOIN "user" u ON u.id = t.user_id
 ORDER BY t.date DESC
 LIMIT 50;
 
-SELECT name, type, emoji, color, "userId"
+SELECT name, type, emoji, color, user_id, archived_at
 FROM "category"
 ORDER BY type, name;
+
+SELECT name, kind, initial_balance, is_default, archived_at
+FROM "wallet"
+ORDER BY user_id, created_at;
 
 SELECT "chatId", "updatedAt"
 FROM "bot_conversation"
@@ -577,8 +605,9 @@ git log --oneline --decorate -10
 
 - В истории пока нет фильтра по конкретной категории.
 - Из столбца общей аналитики пока нельзя перейти к операциям выбранного месяца.
-- Настройки и полезное пока заготовки.
-- Frontend bundle около 595 KB и требует дальнейшего разделения.
+- Полезное пока является заготовкой.
+- Для перевода денег между кошельками пока нет отдельной сущности transfer: перенос выполняется двумя операциями.
+- Frontend разделен на ленивые чанки, но аналитический чанк с Recharts остается крупным.
 - Frontend tests пока покрывают форматирование.
 - Нужны integration и E2E tests.
 - Backend audit показывает четыре moderate warnings в транзитивной зависимости Prisma через `@hono/node-server`. Приложение не использует затронутый Hono `serveStatic`, но зависимости нужно регулярно обновлять и перепроверять.

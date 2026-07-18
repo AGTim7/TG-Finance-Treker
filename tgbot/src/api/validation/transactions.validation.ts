@@ -1,8 +1,7 @@
 import { ApiError } from '../errors/apiError'
 import { parseTransactionAmount, TransactionAmountError } from '../../domain/transactionAmount'
 import type { TransactionType } from '../../../generated/prisma/enums'
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+import { parseUuid } from './resources.validation'
 
 export function parsePageValue(
   value: unknown,
@@ -19,7 +18,6 @@ export function parsePageValue(
   if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > maximum) {
     throw new ApiError(400, `${field} must be a positive integer not greater than ${maximum}`)
   }
-
   return parsed
 }
 
@@ -28,67 +26,76 @@ export function parseTransactionType(value: unknown): TransactionType | undefine
   if (value !== 'INCOME' && value !== 'EXPENSE') {
     throw new ApiError(400, 'type must be INCOME or EXPENSE')
   }
-
   return value
 }
 
-function parseDateValue(value: unknown, field: 'from' | 'to') {
+function parseDateValue(value: unknown, field: 'from' | 'to' | 'date') {
   if (value === undefined) return undefined
   if (typeof value !== 'string' || value.length > 40) {
     throw new ApiError(400, `${field} must be a valid ISO date`)
   }
-
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    throw new ApiError(400, `${field} must be a valid ISO date`)
-  }
-
+  if (Number.isNaN(date.getTime())) throw new ApiError(400, `${field} must be a valid ISO date`)
   return date
 }
 
 export function parseDateRange(fromValue: unknown, toValue: unknown) {
   const from = parseDateValue(fromValue, 'from')
   const to = parseDateValue(toValue, 'to')
-
-  if (from && to && from >= to) {
-    throw new ApiError(400, 'from must be earlier than to')
-  }
-
+  if (from && to && from >= to) throw new ApiError(400, 'from must be earlier than to')
   return { from, to }
 }
 
-export function parseCreateTransactionBody(body: unknown) {
+function parseAmount(value: unknown) {
+  try {
+    return parseTransactionAmount(value)
+  } catch (error) {
+    if (error instanceof TransactionAmountError) throw new ApiError(400, error.message)
+    throw error
+  }
+}
+
+function parseDescription(value: unknown, optional: boolean) {
+  if (optional && value === undefined) return undefined
+  if (value === null) return null
+  if (typeof value !== 'string') throw new ApiError(400, 'description must be a string or null')
+  const normalized = value.trim()
+  if (normalized.length > 500) {
+    throw new ApiError(400, 'description must not be longer than 500 characters')
+  }
+  return normalized || null
+}
+
+function parseBody(body: unknown) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     throw new ApiError(400, 'Request body must be an object')
   }
+  return body as Record<string, unknown>
+}
 
-  const { categoryId, amount, description } = body as Record<string, unknown>
-  if (typeof categoryId !== 'string' || !UUID_PATTERN.test(categoryId)) {
-    throw new ApiError(400, 'categoryId must be a UUID')
+export function parseCreateTransactionBody(body: unknown) {
+  const value = parseBody(body)
+  return {
+    categoryId: parseUuid(value.categoryId, 'categoryId')!,
+    walletId: parseUuid(value.walletId, 'walletId', true),
+    amount: parseAmount(value.amount),
+    description: parseDescription(value.description, true) ?? undefined,
+    date: parseDateValue(value.date, 'date'),
   }
+}
 
-  let parsedAmount
-  try {
-    parsedAmount = parseTransactionAmount(amount)
-  } catch (error) {
-    if (error instanceof TransactionAmountError) {
-      throw new ApiError(400, error.message)
-    }
-    throw error
-  }
-
-  if (description !== undefined && typeof description !== 'string') {
-    throw new ApiError(400, 'description must be a string')
-  }
-
-  const normalizedDescription = description?.trim()
-  if (normalizedDescription && normalizedDescription.length > 500) {
-    throw new ApiError(400, 'description must not be longer than 500 characters')
+export function parseUpdateTransactionBody(body: unknown) {
+  const value = parseBody(body)
+  const allowed = ['categoryId', 'walletId', 'amount', 'description', 'date']
+  if (!allowed.some((field) => field in value)) {
+    throw new ApiError(400, 'At least one editable field is required')
   }
 
   return {
-    categoryId,
-    amount: parsedAmount,
-    description: normalizedDescription || undefined,
+    categoryId: parseUuid(value.categoryId, 'categoryId', true),
+    walletId: parseUuid(value.walletId, 'walletId', true),
+    amount: value.amount === undefined ? undefined : parseAmount(value.amount),
+    description: parseDescription(value.description, true),
+    date: parseDateValue(value.date, 'date'),
   }
 }
