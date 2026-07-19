@@ -6,6 +6,7 @@ import { webhookCallback } from 'grammy'
 
 import categoriesRoutes from './api/routes/categories.routes'
 import dashboardRoutes from './api/routes/dashboard.routes'
+import exportsRoutes from './api/routes/exports.routes'
 import transactionsRoutes from './api/routes/transactions.routes'
 import analyticsRoutes from './api/routes/analytics.routes'
 import walletsRoutes from './api/routes/wallets.routes'
@@ -13,6 +14,7 @@ import { ApiError } from './api/errors/apiError'
 import { errorHandler } from './api/middleware/errorHandler.middleware'
 import { notFoundHandler } from './api/middleware/notFound.middleware'
 import { telegramAuthMiddleware } from './api/middleware/telegramAuth.middleware'
+import { exportRateLimit } from './api/middleware/exportRateLimit.middleware'
 import { env } from './config/env'
 import bot from './bot/index'
 import { prisma } from './prisma/client'
@@ -69,6 +71,7 @@ if (env.TELEGRAM_UPDATE_MODE === 'webhook') {
 
 app.use('/api/categories', telegramAuthMiddleware, categoriesRoutes)
 app.use('/api/dashboard', telegramAuthMiddleware, dashboardRoutes)
+app.use('/api/exports', telegramAuthMiddleware, exportRateLimit, exportsRoutes)
 app.use('/api/transactions', telegramAuthMiddleware, transactionsRoutes)
 app.use('/api/analytics', telegramAuthMiddleware, analyticsRoutes)
 app.use('/api/wallets', telegramAuthMiddleware, walletsRoutes)

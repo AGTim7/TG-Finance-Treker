@@ -29,6 +29,7 @@ declare global {
         expand(): void;
         close(): void;
         showAlert(message: string): void;
+        openTelegramLink?(url: string): void;
         onEvent(eventType: 'themeChanged', callback: () => void): void;
         offEvent(eventType: 'themeChanged', callback: () => void): void;
         HapticFeedback: {
