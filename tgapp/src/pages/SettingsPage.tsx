@@ -123,7 +123,7 @@ function WalletEditor({ wallet, trigger }: { wallet?: Wallet; trigger: ReactElem
       <DrawerTrigger render={trigger} />
       <DrawerContent className="mx-auto max-w-110 rounded-t-2xl border-t border-tg-hint/10 bg-tg-section-bg text-tg-text">
         <div className="overflow-y-auto px-5 pb-safe">
-          <DrawerHeader className="flex-row items-center justify-between px-0 pb-4 pt-5 text-left">
+          <DrawerHeader className="flex-row items-center justify-between px-0 pb-4 pr-11 pt-5 text-left">
             <DrawerTitle className="text-lg font-bold">{wallet ? 'Редактировать кошелёк' : 'Новый кошелёк'}</DrawerTitle>
             {canArchive && (
               <Button type="button" size="icon-sm" variant="ghost" className="text-tg-destructive-text" title="Архивировать кошелёк" aria-label="Архивировать кошелёк" disabled={archiveMutation.isPending} onClick={() => { if (window.confirm('Архивировать этот кошелёк?')) archiveMutation.mutate() }}>
@@ -197,7 +197,7 @@ function CategoryEditor({ category, type, trigger }: { category?: Category; type
       <DrawerTrigger render={trigger} />
       <DrawerContent className="mx-auto max-w-110 rounded-t-2xl border-t border-tg-hint/10 bg-tg-section-bg text-tg-text">
         <div className="overflow-y-auto px-5 pb-safe">
-          <DrawerHeader className="flex-row items-center justify-between px-0 pb-4 pt-5 text-left">
+          <DrawerHeader className="flex-row items-center justify-between px-0 pb-4 pr-11 pt-5 text-left">
             <DrawerTitle className="text-lg font-bold">{category ? 'Редактировать категорию' : 'Новая категория'}</DrawerTitle>
             {category && <Button type="button" size="icon-sm" variant="ghost" className="text-tg-destructive-text" title="Архивировать категорию" aria-label="Архивировать категорию" disabled={archiveMutation.isPending} onClick={() => { if (window.confirm('Архивировать эту категорию? Старые транзакции сохранятся.')) archiveMutation.mutate() }}>{archiveMutation.isPending ? <Spinner /> : <Trash2 />}</Button>}
           </DrawerHeader>

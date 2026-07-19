@@ -196,7 +196,7 @@ export default function TransactionDialog({
       <DrawerTrigger render={trigger ?? defaultTrigger} />
       <DrawerContent className="mx-auto max-w-110 rounded-t-2xl border-t border-tg-hint/10 bg-tg-section-bg text-tg-text">
         <div className="overflow-y-auto px-5 pb-safe">
-          <DrawerHeader className="flex-row items-center justify-between px-0 pb-3 pt-5 text-left">
+          <DrawerHeader className="flex-row items-center justify-between px-0 pb-3 pr-11 pt-5 text-left">
             <DrawerTitle className="text-lg font-bold">
               {isEditing ? 'Редактировать транзакцию' : isIncome ? 'Добавить доход' : 'Добавить расход'}
             </DrawerTitle>
